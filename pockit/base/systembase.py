@@ -77,8 +77,6 @@ class SystemBase(ABC):
             parallel: Whether to use Numba ``parallel`` mode.
             fastmath: Whether to use Numba ``fastmath`` mode.
         """
-        # self._class_phase = ClassPhase
-
         if isinstance(static_parameter, int):
             self._num_static_parameter = static_parameter
             self._name_static_parameter = [f"s_{i}" for i in range(static_parameter)]
@@ -153,9 +151,7 @@ class SystemBase(ABC):
             [], np.array([]), np.array([])
         )  # no system constraint by default
 
-    def new_phase(
-        self, state: int | list[str], control: int | list[str]
-    ) -> PhaseBase:
+    def new_phase(self, state: int | list[str], control: int | list[str]) -> PhaseBase:
         """Create a new phase for the given system.
 
         This method is recommended to create a phase rather than using ``Phase``'s constructor directly,
@@ -405,7 +401,7 @@ class SystemBase(ABC):
         self._node_objective.h_i_col = self._func_objective.H_index_col
 
         forward_gradient_i([self._node_objective])
-        forward_hessian_i([self._node_objective])
+        forward_hessian_system_i([self._node_objective])
         self._auto_update.update(8)
 
     def _update_structure_system_constraint(self) -> None:
@@ -428,7 +424,7 @@ class SystemBase(ABC):
             self._node_system_constraint.append(node)
 
         forward_gradient_i(self._node_system_constraint)
-        forward_hessian_i(self._node_system_constraint)
+        forward_hessian_system_i(self._node_system_constraint)
         self._auto_update.update(9)
 
     def _update_index_objective(self) -> None:
@@ -727,7 +723,7 @@ class SystemBase(ABC):
         self._node_objective.g = self._func_objective.G(vb, 1)
         self._node_objective.h = self._func_objective.H(vb, 1)
         forward_gradient_v([self._node_objective])
-        forward_hessian_v([self._node_objective])
+        forward_hessian_system_v([self._node_objective])
         return (
             np.concatenate(self._node_objective.H)
             if self._node_objective.H
@@ -750,7 +746,7 @@ class SystemBase(ABC):
             self._node_system_constraint[i].g = self._func_system_constraint[i].G(vb, 1)
             self._node_system_constraint[i].h = self._func_system_constraint[i].H(vb, 1)
         forward_gradient_v(self._node_system_constraint)
-        forward_hessian_v(self._node_system_constraint)
+        forward_hessian_system_v(self._node_system_constraint)
 
         hess = []
         for i in range(self._num_system_constraint):

@@ -159,10 +159,10 @@ def composite_hessian_i_h(
 
 
 @nb.njit
-def composite_hessian_i_g(
+def composite_hessian_phase_i_g(
     arg_G_i_row: ListJit, arg_G_i_col: ListJit, diag: ListJit, l: int
 ) -> tuple[ListJit, ListJit]:
-    """Composite the global Hessian indices, the ``h-G`` part."""
+    """Composite the global Hessian indices for phase nodes, the ``h-G`` part."""
     node_H_i_row = ListJit.empty_list(nb.int32[:])
     node_H_i_col = ListJit.empty_list(nb.int32[:])
     for G_i_row, G_i_col, is_diag in zip(arg_G_i_row, arg_G_i_col, diag):
@@ -193,8 +193,8 @@ def composite_hessian_i_g(
     return node_H_i_row, node_H_i_col
 
 
-def forward_hessian_i(nodes: list[Node]) -> None:
-    """Compute the global Hessian indices of the nodes iteratively."""
+def forward_hessian_phase_i(nodes: list[Node]) -> None:
+    """Compute the global Hessian indices of the phase nodes iteratively."""
     for node in nodes:
         if not node.args:
             continue
@@ -221,7 +221,7 @@ def forward_hessian_i(nodes: list[Node]) -> None:
             arg_G_i_col.append(node.args[i_col].G_i)
             diag.append(i_row == i_col)
         if arg_G_i_row:
-            H_i_g_row, H_i_g_col = composite_hessian_i_g(
+            H_i_g_row, H_i_g_col = composite_hessian_phase_i_g(
                 arg_G_i_row, arg_G_i_col, diag, node.l
             )
             node.H_i_row.extend(H_i_g_row)
@@ -242,7 +242,7 @@ def composite_hessian_v_h(arg_H: ListJit, node_g: VecFloat, l: int) -> ListJit:
 
 
 @nb.njit
-def composite_hessian_v_g(
+def composite_hessian_phase_v_g(
     arg_G_i_row: ListJit,
     arg_G_i_col: ListJit,
     arg_G_row: ListJit,
@@ -251,7 +251,7 @@ def composite_hessian_v_g(
     node_h: VecFloat,
     l: int,
 ) -> ListJit:
-    """Composite the global Hessian values, the ``h-G`` part."""
+    """Composite the global Hessian values for phase nodes, the ``h-G`` part."""
     node_H = ListJit.empty_list(nb.float64[:])
     for G_i_row, G_i_col, G_row, G_col, is_diag, n_h in zip(
         arg_G_i_row, arg_G_i_col, arg_G_row, arg_G_col, diag, node_h
@@ -275,8 +275,8 @@ def composite_hessian_v_g(
     return node_H
 
 
-def forward_hessian_v(nodes: list[Node]) -> None:
-    """Compute the global Hessian values of the nodes iteratively."""
+def forward_hessian_phase_v(nodes: list[Node]) -> None:
+    """Compute the global Hessian values of the phase nodes iteratively."""
     for node in nodes:
         if not node.args:
             continue
@@ -290,7 +290,7 @@ def forward_hessian_v(nodes: list[Node]) -> None:
         arg_G_row = ListJit()
         arg_G_col = ListJit()
         diag = ListJit()
-        for i_row, i_col, n_h in zip(node.h_i_row, node.h_i_col, node.h):
+        for i_row, i_col in zip(node.h_i_row, node.h_i_col):
             arg_G_i_row.append(node.args[i_row].G_i)
             arg_G_i_col.append(node.args[i_col].G_i)
             arg_G_row.append(node.args[i_row].G)
@@ -298,7 +298,162 @@ def forward_hessian_v(nodes: list[Node]) -> None:
             diag.append(i_row == i_col)
         if arg_G_row:
             node.H.extend(
-                composite_hessian_v_g(
+                composite_hessian_phase_v_g(
+                    arg_G_i_row, arg_G_i_col, arg_G_row, arg_G_col, diag, node.h, node.l
+                )
+            )
+
+
+@nb.njit
+def _nb_tile(a, n):
+    out = np.empty(a.size * n, dtype=a.dtype)
+    for i in range(n):
+        out[i * a.size : (i + 1) * a.size] = a
+    return out
+
+
+@nb.njit
+def _nb_kron(a, b):
+    out = np.empty(a.size * b.size, dtype=a.dtype)
+    for i in range(a.size):
+        out[i * b.size : (i + 1) * b.size] = a[i] * b
+    return out
+
+
+@nb.njit
+def composite_hessian_system_i_g(
+    arg_G_i_row: ListJit, arg_G_i_col: ListJit, diag: ListJit, l: int
+) -> tuple[ListJit, ListJit]:
+    """Composite the global Hessian indices for system nodes, the ``h-G`` part."""
+    node_H_i_row = ListJit.empty_list(nb.int32[:])
+    node_H_i_col = ListJit.empty_list(nb.int32[:])
+    for G_i_row, G_i_col, is_diag in zip(arg_G_i_row, arg_G_i_col, diag):
+        for a_i_row in G_i_row:
+            for a_i_col in G_i_col:
+                if a_i_row[0] < a_i_col[0]:
+                    if is_diag:
+                        continue
+                    else:
+                        a_i_row_2, a_i_col_2 = a_i_col.copy(), a_i_row.copy()
+                else:
+                    a_i_row_2, a_i_col_2 = a_i_row.copy(), a_i_col.copy()
+                if a_i_row_2[0] > a_i_col_2[0]:
+                    node_H_i_row.append(np.repeat(a_i_row_2, len(a_i_col_2)))
+                    node_H_i_col.append(_nb_tile(a_i_col_2, len(a_i_row_2)))
+                else:
+                    if len(a_i_row_2) > 1 and a_i_row_2[0] == a_i_row_2[-1]:
+                        a_i_row_2 = np.array([a_i_row_2[0]])
+                    if len(a_i_col_2) > 1 and a_i_col_2[0] == a_i_col_2[-1]:
+                        a_i_col_2 = np.array([a_i_col_2[0]])
+                    a_i = a_i_row_2
+                    tril_row, tril_col = np.tril_indices(len(a_i))
+                    node_H_i_row.append(a_i[tril_row])
+                    node_H_i_col.append(a_i[tril_col])
+                    if not is_diag:
+                        node_H_i_row.append(a_i[tril_row])
+                        node_H_i_col.append(a_i[tril_col])
+    return node_H_i_row, node_H_i_col
+
+
+def forward_hessian_system_i(nodes: list[Node]) -> None:
+    """Compute the global Hessian indices of the system nodes iteratively."""
+    for node in nodes:
+        if not node.args:
+            continue
+        node.H_i_row = ListJit.empty_list(nb.int32[:])
+        node.H_i_col = ListJit.empty_list(nb.int32[:])
+
+        arg_H_i_row = ListJit()
+        arg_H_i_col = ListJit()
+        for i in node.g_i:
+            arg_H_i_row.append(node.args[i].H_i_row)
+            arg_H_i_col.append(node.args[i].H_i_col)
+        if arg_H_i_row:
+            H_i_h_row, H_i_h_col = composite_hessian_i_h(
+                arg_H_i_row, arg_H_i_col, node.l
+            )
+            node.H_i_row.extend(H_i_h_row)
+            node.H_i_col.extend(H_i_h_col)
+
+        arg_G_i_row = ListJit()
+        arg_G_i_col = ListJit()
+        diag = ListJit()
+        for i_row, i_col in zip(node.h_i_row, node.h_i_col):
+            arg_G_i_row.append(node.args[i_row].G_i)
+            arg_G_i_col.append(node.args[i_col].G_i)
+            diag.append(i_row == i_col)
+        if arg_G_i_row:
+            H_i_g_row, H_i_g_col = composite_hessian_system_i_g(
+                arg_G_i_row, arg_G_i_col, diag, node.l
+            )
+            node.H_i_row.extend(H_i_g_row)
+            node.H_i_col.extend(H_i_g_col)
+
+
+@nb.njit
+def composite_hessian_system_v_g(
+    arg_G_i_row: ListJit,
+    arg_G_i_col: ListJit,
+    arg_G_row: ListJit,
+    arg_G_col: ListJit,
+    diag: ListJit,
+    node_h: VecFloat,
+    l: int,
+) -> ListJit:
+    """Composite the global Hessian values for system nodes, the ``h-G`` part."""
+    node_H = ListJit.empty_list(nb.float64[:])
+    for G_i_row, G_i_col, G_row, G_col, is_diag, n_h in zip(
+        arg_G_i_row, arg_G_i_col, arg_G_row, arg_G_col, diag, node_h
+    ):
+        for a_i_row, a_g_row in zip(G_i_row, G_row):
+            for a_i_col, a_g_col in zip(G_i_col, G_col):
+                if a_i_row[0] < a_i_col[0]:
+                    if is_diag:
+                        continue
+                    else:
+                        a_i_row_2, a_i_col_2 = a_i_col.copy(), a_i_row.copy()
+                        a_g_row_2, a_g_col_2 = a_g_col.copy(), a_g_row.copy()
+                else:
+                    a_i_row_2, a_i_col_2 = a_i_row.copy(), a_i_col.copy()
+                    a_g_row_2, a_g_col_2 = a_g_row.copy(), a_g_col.copy()
+                if a_i_row_2[0] > a_i_col_2[0]:
+                    node_H.append(_nb_kron(a_g_row_2, a_g_col_2) * n_h)
+                else:
+                    if len(a_i_row_2) > 1 and a_i_row_2[0] == a_i_row_2[-1]:
+                        a_g_row_2 = np.array([np.sum(a_g_row_2)])
+                    if len(a_i_col_2) > 1 and a_i_col_2[0] == a_i_col_2[-1]:
+                        a_g_col_2 = np.array([np.sum(a_g_col_2)])
+                    tril_row, tril_col = np.tril_indices(len(a_g_row_2))
+                    node_H.append(a_g_row_2[tril_row] * a_g_col_2[tril_col] * n_h)
+                    if not is_diag:
+                        node_H.append(a_g_col_2[tril_row] * a_g_row_2[tril_col] * n_h)
+    return node_H
+
+
+def forward_hessian_system_v(nodes: list[Node]) -> None:
+    """Compute the global Hessian values of the system nodes iteratively."""
+    for node in nodes:
+        if not node.args:
+            continue
+        node.H = ListJit.empty_list(nb.float64[:])
+        arg_H = ListJit([node.args[i].H for i in node.g_i])
+        if arg_H:
+            node.H.extend(composite_hessian_v_h(arg_H, node.g, node.l))
+
+        arg_G_i_row = ListJit()
+        arg_G_i_col = ListJit()
+        arg_G_row = ListJit()
+        arg_G_col = ListJit()
+        diag = ListJit()
+        for i_row, i_col in zip(node.h_i_row, node.h_i_col):
+            arg_G_i_row.append(node.args[i_row].G_i)
+            arg_G_i_col.append(node.args[i_col].G_i)
+            arg_G_row.append(node.args[i_row].G)
+            arg_G_col.append(node.args[i_col].G)
+            diag.append(i_row == i_col)
+        if arg_G_row:
+            node.H.extend(
+                composite_hessian_system_v_g(
                     arg_G_i_row, arg_G_i_col, arg_G_row, arg_G_col, diag, node.h, node.l
                 )
             )

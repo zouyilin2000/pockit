@@ -20,7 +20,7 @@ def solve(
     as values of static variables.
 
     Optimizer options should be a dictionary of options to pass to Ipopt.
-    See [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html) for available options. 
+    See [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html) for available options.
     Options will be passed verbatimly.
 
     Args:
@@ -29,7 +29,7 @@ def solve(
         optimizer_options: Options to pass to IPOPT.
 
     Returns:
-        The value returned by IPOPT parsed as the same format as ``guess`` 
+        The value returned by IPOPT parsed as the same format as ``guess``
         (a single ``Variable`` object or a list of ``Variable`` objects and a array for static values),
         and the raw output returned by IPOPT.
     """

@@ -301,7 +301,7 @@ def V_lgr_x_aug(num_point: int) -> VecFloat:
         Value matrix of the state variables for error check.
     """
     x, _ = xw_lgr(num_point)
-    x_1 = np.concatenate((x, [1]), dtype=np.float64)
+    x_1 = np.concatenate((x, [1.0]), dtype=np.float64)
     x_aug, _ = xw_lgr(num_point + 1)
     V = []
     for i in range(num_point + 1):
@@ -505,7 +505,7 @@ class Discretization(DiscretizationBase):
         self._l_d, self._r_d = lr_d(num_point, self.n_x, self.n_u)
 
         self._index_state = IndexNode(0, (1, self.L_m), self.L_m)
-        self._index_control = IndexNode(self.L_m, (1, self.L_m), None)
+        self._index_control = IndexNode(0, (1, self.L_m), None)
         self._index_mstage = IndexNode(0, (1, self.L_m), None)
         self._T_v_coo = CooMatrixNode(self._T_v, self._index_state)
         self._I_m_coo = CooMatrixNode(self._I_m, self._index_mstage)

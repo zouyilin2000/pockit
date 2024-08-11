@@ -612,7 +612,7 @@ class PhaseBase(ABC):
             self._node_time_back.h_i_col = self.info_t_f.v.H_index_col
 
         forward_gradient_i(self._node_basic)
-        forward_hessian_i(self._node_basic)
+        forward_hessian_phase_i(self._node_basic)
         self._auto_update.update(5)
 
     def _update_node_function(
@@ -637,7 +637,7 @@ class PhaseBase(ABC):
             nodes_back[i].h_i_row = funcs[i].H_index_row
             nodes_back[i].h_i_col = funcs[i].H_index_col
         forward_gradient_i(nodes_front + nodes_middle + nodes_back)
-        forward_hessian_i(nodes_front + nodes_middle + nodes_back)
+        forward_hessian_phase_i(nodes_front + nodes_middle + nodes_back)
         return nodes_front, nodes_middle, nodes_back
 
     def _update_node_scale(self, node: list[Node]) -> list[Node]:
@@ -650,7 +650,7 @@ class PhaseBase(ABC):
             n_scaled.h_i_col = np.array([0], dtype=np.int32)
             n_scaled.h = np.array([[1.0]], dtype=np.float64)
         forward_gradient_i(node_scaled)
-        forward_hessian_i(node_scaled)
+        forward_hessian_phase_i(node_scaled)
         return node_scaled
 
     def _update_node_integral(self) -> None:
@@ -1059,7 +1059,7 @@ class PhaseBase(ABC):
             self._node_time_back.g = self.info_t_f.v.G(s, 1)
             self._node_time_back.h = self.info_t_f.v.H(s, 1)
         forward_gradient_v(self._node_basic)
-        forward_hessian_v(self._node_basic)
+        forward_hessian_phase_v(self._node_basic)
 
     def _hess_integral(self, which, x: VecFloat, s: VecFloat):
         vb, dt = self._value_basic(x, s)
@@ -1098,7 +1098,7 @@ class PhaseBase(ABC):
                     )
                     self._node_integral_unscaled_back[i].h = h[:, -1:]
         forward_gradient_v(self._node_integral)
-        forward_hessian_v(self._node_integral)
+        forward_hessian_phase_v(self._node_integral)
 
     def _hess_dynamic_constraint(self, x: VecFloat, s: VecFloat, fct: VecFloat):
         hess_T = []
@@ -1156,7 +1156,7 @@ class PhaseBase(ABC):
                 )
                 self._node_dynamics_unscaled_back[i].h = h[:, -1:]
         forward_gradient_v(self._node_dynamics)
-        forward_hessian_v(self._node_dynamics)
+        forward_hessian_phase_v(self._node_dynamics)
 
         hess_I = []
         for i in range(self.n_x):
@@ -1206,7 +1206,7 @@ class PhaseBase(ABC):
                 self._node_phase_constraint_back[i].g = g[:, -1:]
                 self._node_phase_constraint_back[i].h = h[:, -1:]
         forward_gradient_v(self._node_phase_constraint)
-        forward_hessian_v(self._node_phase_constraint)
+        forward_hessian_phase_v(self._node_phase_constraint)
 
         hess = []
         f_ = 0

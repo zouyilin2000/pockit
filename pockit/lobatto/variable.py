@@ -10,10 +10,10 @@ class Variable(VariableBase):
         super().__init__(phase, data)
 
     def _assemble_x(self, V_interval) -> scipy.sparse.csr_array:
-        return self._assemble_c(self._l_x, self._r_x, self._num_point, V_interval)
+        return self._assemble_c(self._num_point, V_interval)
 
     def _assemble_u(self, V_interval) -> scipy.sparse.csr_array:
-        return self._assemble_c(self._l_u, self._r_u, self._num_point, V_interval)
+        return self._assemble_c(self._num_point, V_interval)
 
 
 constant_guess: Callable[[Phase, float], Variable] = partial(

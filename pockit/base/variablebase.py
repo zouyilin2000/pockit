@@ -3,7 +3,7 @@ from typing import Self, Type
 
 import scipy.interpolate
 
-from .phasebase import PhaseBase, BcType
+from .phasebase import PhaseBase, BcType, lr_c
 from .vectypes import *
 
 
@@ -43,8 +43,10 @@ def D_interpolation(x_old: VecFloat, x_new: VecFloat) -> VecFloat:
     if not len(x_new):
         return np.array([], dtype=np.float64).reshape(0, len(x_old))
     # scale to [0, 1]
-    x_new = (x_new - x_old[0]) / (x_old[-1] - x_old[0])
-    x_old = (x_old - x_old[0]) / (x_old[-1] - x_old[0])
+    width = x_old[-1] - x_old[0]
+    x_new = (x_new - x_old[0]) / width
+    x_old = (x_old - x_old[0]) / width
+
     D = []
     for i in range(len(x_old)):
         y = np.zeros_like(x_old)
@@ -52,7 +54,7 @@ def D_interpolation(x_old: VecFloat, x_new: VecFloat) -> VecFloat:
         poly = scipy.interpolate.lagrange(x_old, y)
         deriv_poly = np.polyder(poly)
         D.append(np.polyval(deriv_poly, x_new))
-    return np.array(D, dtype=np.float64).T / (x_old[-1] - x_old[0])
+    return np.array(D, dtype=np.float64).T / width
 
 
 class BatchIndexArray:
@@ -165,11 +167,12 @@ class VariableBase(ABC):
         return (t - self.t_0) / (self.t_f - self.t_0)
 
     @staticmethod
-    def _assemble_c(l_s, r_s, num_point, V_interval) -> scipy.sparse.csr_array:
+    def _assemble_c(num_point, V_interval) -> scipy.sparse.csr_array:
         data = []
         row = []
         col = []
         l_r = 0
+        l_s, r_s = lr_c(num_point)
         for i, (l_c, n) in enumerate(zip(l_s, num_point)):
             if not len(V_interval[i]):
                 continue
@@ -247,7 +250,7 @@ class VariableBase(ABC):
             V_interpolation(self._t_u[self._l_u[i] : self._r_u[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)
         ]
-        return self._assemble_x(V_interval)
+        return self._assemble_u(V_interval)
 
     def D_x(self, t: VecFloat) -> scipy.sparse.csr_array:
         """Return the derivative interpolation matrix for the state variables
@@ -299,7 +302,7 @@ class VariableBase(ABC):
             D_interpolation(self._t_u[self._l_u[i] : self._r_u[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)
         ]
-        return self._assemble_x(D_interval)
+        return self._assemble_u(D_interval)
 
     @property
     def x(self) -> BatchIndexArray:
@@ -398,18 +401,14 @@ def constant_guess_base(
     v = Variable(phase, np.full(phase.L, value, dtype=np.float64))
     for i in range(phase.n_x):
         if phase.info_bc_0[i].t == BcType.FIXED:
-        # if isinstance(phase.bc_0[i], float):
             v.x[i][0] = phase.bc_0[i]
         if phase.info_bc_f[i].t == BcType.FIXED:
-        # elif isinstance(phase.bc_f[i], float):
             v.x[i][-1] = phase.bc_f[i]
     if phase.info_t_0.t == BcType.FIXED:
-    # if isinstance(phase.t_0, float):
         v.t_0 = phase.t_0
     else:
         v.t_0 -= 0.5
     if phase.info_t_f.t == BcType.FIXED:
-    # if isinstance(phase.t_f, float):
         v.t_f = phase.t_f
     else:
         v.t_f += 0.5
@@ -435,25 +434,21 @@ def linear_guess_base(
         raise ValueError("phase is not fully configured")
     default = float(default)
     v = Variable(phase, np.full(phase.L, default, dtype=np.float64))
-
     for i in range(phase.n_x):
-        if phase.info_bc_0[i].t == BcType.FIXED and phase.info_bc_f[i].t == BcType.FIXED:
-        # if isinstance(phase.bc_0[i], float) and isinstance(phase.bc_f[i], float):
+        if (
+            phase.info_bc_0[i].t == BcType.FIXED
+            and phase.info_bc_f[i].t == BcType.FIXED
+        ):
             v.x[i] = v._t_x * (phase.bc_f[i] - phase.bc_0[i]) + phase.bc_0[i]
         elif phase.info_bc_0[i].t == BcType.FIXED:
-        # elif isinstance(phase.bc_0[i], float):
             v.x[i] = phase.bc_0[i]
         elif phase.info_bc_f[i].t == BcType.FIXED:
-        # elif isinstance(phase.bc_f[i], float):
             v.x[i] = phase.bc_f[i]
-
     if phase.info_t_0.t == BcType.FIXED:
-    # if isinstance(phase.t_0, float):
         v.t_0 = phase.t_0
     else:
         v.t_0 -= 0.5
     if phase.info_t_f.t == BcType.FIXED:
-    # if isinstance(phase.t_f, float):
         v.t_f = phase.t_f
     else:
         v.t_f += 0.5
