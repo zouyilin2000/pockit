@@ -1470,11 +1470,14 @@ class PhaseBase(ABC):
             I_f_aug_max = np.max(np.abs(I_f_aug_n), axis=1).reshape(-1, 1)
             relative_error = absolute_error / (1.0 + I_f_aug_max)
             relative_error_max = np.max(relative_error)
-            num_new_point = int(
-                np.ceil(
-                    np.log(relative_error_max / relative_tolerance_continuous)
-                    / np.log(self._num_point[i_n])
-                )
+            num_new_point = max(
+                int(
+                    np.ceil(
+                        np.log(relative_error_max / relative_tolerance_continuous)
+                        / np.log(self._num_point[i_n])
+                    )
+                ),
+                1,
             )
             if self._num_point[i_n] + num_new_point <= num_point_max:
                 mesh_new.append(self._mesh[i_n])
@@ -1486,10 +1489,10 @@ class PhaseBase(ABC):
                     int(np.floor(mesh_d / mesh_length_min)), 1
                 )  # at least one interval whatever
                 num_interval = max(
-                    2,
                     int(
                         np.ceil((self._num_point[i_n] + num_new_point) / num_point_min)
                     ),
+                    2,
                 )
                 num_interval = min(num_interval, num_interval_max)
                 num_interval = max(num_interval, num_interval_min)
