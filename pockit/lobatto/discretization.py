@@ -259,6 +259,7 @@ def P_lgl(num_point: int) -> VecFloat:
     return np.array(P, dtype=np.float64).T
 
 
+@functools.lru_cache
 def V_lgl_aug(num_point: int) -> VecFloat:
     """Compute the value matrix of the Legendre-Gauss-Lobatto nodes for error
     check.
@@ -282,6 +283,7 @@ def V_lgl_aug(num_point: int) -> VecFloat:
     return np.array(V, dtype=np.float64).T
 
 
+@functools.lru_cache
 def T_lgl_aug(num_point: int) -> VecFloat:
     """Compute the translation matrix of the Legendre-Gauss-Lobatto nodes for
     error check.

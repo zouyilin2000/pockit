@@ -181,6 +181,7 @@ def T_lgr(num_point: int) -> VecFloat:
     return np.hstack((e, c))
 
 
+@functools.lru_cache
 def I_lgr(num_point: int) -> VecFloat:
     """Compute the integration matrix of the Legendre-Gauss-Radau nodes.
 
@@ -289,6 +290,7 @@ def P_lgr(num_point: int) -> VecFloat:
     return np.array(P, dtype=float).T
 
 
+@functools.lru_cache
 def V_lgr_x_aug(num_point: int) -> VecFloat:
     """Compute the value matrix of the state variables for error check.
 
@@ -312,6 +314,7 @@ def V_lgr_x_aug(num_point: int) -> VecFloat:
     return np.array(V, dtype=float).T
 
 
+@functools.lru_cache
 def V_lgr_u_aug(num_point: int) -> VecFloat:
     """Compute the value matrix of the control variables for error check.
 
@@ -334,6 +337,7 @@ def V_lgr_u_aug(num_point: int) -> VecFloat:
     return np.array(V, dtype=float).T
 
 
+@functools.lru_cache
 def T_lgr_aug(num_point: int) -> VecFloat:
     """Compute the translation matrix of the state variable for error check.
 

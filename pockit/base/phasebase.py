@@ -246,10 +246,9 @@ class PhaseBase(ABC):
         """
         if len(dynamics) != self.n_x:
             raise ValueError(
-                "number of dynamics must be same as number of state variables"
+                "the number of dynamics must be equal to the number of state variables"
             )
 
-        self._num_dynamics = len(dynamics)
         self._expr_dynamics = [sp.sympify(d) for d in dynamics]
         self._func_dynamics = [
             FastFunc(d, self._symbols, *self._compile_parameters)

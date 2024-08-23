@@ -61,7 +61,6 @@ class Node:
 
         self.l = 1
         self.args = []
-        self._D_fct = []
 
     def set_G(self, G: Iterable[VecFloat]) -> None:
         """Set the node's global gradient values."""
