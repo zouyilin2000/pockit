@@ -11,7 +11,7 @@ from .vectypes import *
 from .variablebase import VariableBase
 
 
-@nb.njit("int32[:](int32[:], int32, int32)")
+@nb.njit
 def _translate_index(index, l_p, r_s):
     index_2 = np.empty_like(index)
     for i in range(len(index)):
@@ -586,8 +586,7 @@ class SystemBase(ABC):
 
     def constraints(self, x: VecFloat) -> VecFloat:
         """Constraint functions of the discretized optimization problem."""
-        cons = []
-        cons.append(self._system_constraint(x))
+        cons = [self._system_constraint(x)]
 
         s = x[self.l_s : self.r_s]
         for p_, p in enumerate(self.p):
@@ -595,7 +594,7 @@ class SystemBase(ABC):
             cons.append(p._value_dynamic_constraint(x_, s))
             cons.append(p._value_phase_constraint(x_, s))
 
-        return np.concatenate(cons) if cons else np.array([], dtype=np.float64)
+        return np.concatenate(cons)
 
     def _grad_basic(self, which, x):
         s = x[self.l_s : self.r_s]
