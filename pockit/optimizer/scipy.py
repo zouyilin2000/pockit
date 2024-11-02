@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 from typing import Iterable, Optional, Any
 
 import numpy as np

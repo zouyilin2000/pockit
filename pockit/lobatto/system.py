@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 from typing import Iterable
 
 from pockit.base.systembase import SystemBase, PhaseBase

@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 import numpy as np
 
 from pockit.base.discretizationbase import lr_c, lr_nc

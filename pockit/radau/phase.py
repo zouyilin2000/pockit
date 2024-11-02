@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 import sympy as sp
 
 from pockit.base.phasebase import *

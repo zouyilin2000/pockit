@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 from pockit.base.systembase import SystemBase, PhaseBase
 from pockit.radau.phase import Phase
 

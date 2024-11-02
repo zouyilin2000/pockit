@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 import functools
 from itertools import count
 from typing import Callable

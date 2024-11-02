@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 import numba as nb
 
 from typing import Iterable, Self

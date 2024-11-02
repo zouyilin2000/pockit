@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 import itertools as it
 from collections import namedtuple
 from enum import Enum

@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 from typing import Any, Iterable, Optional
 
 import cyipopt

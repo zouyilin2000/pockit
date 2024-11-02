@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 import functools
 from typing import Callable
 

@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 from abc import ABC, abstractmethod
 from typing import Callable, Optional
 import scipy.sparse

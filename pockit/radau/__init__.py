@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 """Submodule for Legendre-Gauss-Radau pseudo-spectral methods.
 
 The Radau phase is suitable for problems with continuous or

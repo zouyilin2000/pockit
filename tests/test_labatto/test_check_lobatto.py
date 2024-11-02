@@ -1,3 +1,4 @@
+# Copyright (c) 2024 Yilin Zou
 import pytest
 
 from pockit.lobatto import System, constant_guess
