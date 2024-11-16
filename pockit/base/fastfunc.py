@@ -13,32 +13,7 @@ from .vectypes import *
 
 
 @functools.lru_cache
-def _deco_basic(num_free_symbol: int, parallel: bool, fastmath: bool) -> str:
-    """Decorator for basic functions."""
-    tail = ""
-    # maybe numba bugs, do not compile if set (TODO: why?)
-    # if parallel:
-    #     tail += ', target="parallel"'
-    if fastmath:
-        tail += ", fastmath=True"
-    return '@numba.vectorize("float64({})"{})\n'.format(
-        ", ".join(["float64"] * num_free_symbol), tail
-    )
-
-
-@functools.lru_cache
-def _deco_F(parallel: bool, fastmath: bool) -> str:
-    """Decorator for the aggregate function F (value)."""
-    tail = ""
-    if parallel:
-        tail += ", parallel=True"
-    if fastmath:
-        tail += ", fastmath=True"
-    return '@numba.njit("float64[:](float64[:], int32)"{})\n'.format(tail)
-
-
-@functools.lru_cache
-def _deco_GH(parallel: bool, fastmath: bool) -> str:
+def _deco(parallel: bool, fastmath: bool) -> str:
     """Decorator for the aggregate functions G (gradient) and H (hessian)."""
     tail = ""
     if parallel:
@@ -77,7 +52,7 @@ class FastFunc:
 
     def __init__(
         self,
-        function: int | float | sp.Expr,
+        function: list[int | float | sp.Expr],
         args: list[sp.Symbol],
         simplify: bool = False,
         parallel: bool = False,
@@ -113,37 +88,151 @@ class FastFunc:
             parallel: Whether to use Numba ``parallel`` mode.
             fastmath: Whether to use Numba ``fastmath`` mode.
         """
-        self._function = sp.sympify(function)
+        self._function = [sp.sympify(func) for func in function]
+        self._len_function = len(function)
         self._args = args
 
-        # random valid Python name to avoid conflict
-        self._valid_args = [
-            sp.Symbol("xbN4dRhrnN_{}".format(i)) for i in range(len(args))
-        ]
-        for i in range(len(args)):
-            self._function = self._function.subs(args[i], self._valid_args[i])
-        self._args = self._valid_args
+        valid_args = [sp.Symbol(f"xbN4dRhrnN_{i}") for i in range(len(self._args))]
+        map_args = dict(zip(self._args, valid_args))
+        for i in range(len(self._function)):
+            self._function[i] = self._function[i].subs(map_args)
+        self._args = valid_args
 
         self._simplify = simplify
         self._parallel = parallel
         self._fastmath = fastmath
 
-        self._value_index = []
-        self._grad_index = []
-        self._hess_index = []
-
-        self._value_consts = None
-        self._grad_consts = {}
-        self._hess_consts = {}
-
         self.__expand_opt = create_expand_pow_optimization(3)
 
-        basic_str = self._gen_basic_funcs()
-        aggregate_str = self._gen_aggregate_funcs()
+        self._gen_expr()
+        self._gen_code()
+        self._compile(self._code_value + self._code_grad + self._code_hess)
+        self._gen_index()
+        # basic_str = self._gen_basic_funcs()
+        # aggregate_str = self._gen_aggregate_funcs()
+        #
+        # self._compile(basic_str + aggregate_str)
+        # self.G_index = self._gen_G_index()
+        # self.H_index_row, self.H_index_col = self._gen_H_index()
 
-        self._compile(basic_str + aggregate_str)
-        self.G_index = self._gen_G_index()
-        self.H_index_row, self.H_index_col = self._gen_H_index()
+    def _gen_expr(self) -> None:
+        expr_value = [
+            func if not self._simplify else sp.simplify(func) for func in self._function
+        ]
+
+        expr_grad = []
+        index_grad = []
+        expr_hess = []
+        index_hess_row = []
+        index_hess_col = []
+
+        for func in expr_value:
+            index_grad.append([])
+            index_hess_row.append([])
+            index_hess_col.append([])
+            for i in range(len(self._args)):
+                grad = sp.diff(func, self._args[i])
+                if self._simplify:
+                    grad = sp.simplify(grad)
+                if grad == 0:
+                    continue
+                expr_grad.append(grad)
+                index_grad[-1].append(i)
+
+                for j in range(i + 1):
+                    hess = sp.diff(grad, self._args[j])
+                    if self._simplify:
+                        hess = sp.simplify(hess)
+                    if hess == 0:
+                        continue
+                    expr_hess.append(hess)
+                    index_hess_row[-1].append(i)
+                    index_hess_col[-1].append(j)
+        self._expr_value = expr_value
+        self._expr_grad = expr_grad
+        self._expr_hess = expr_hess
+        self._index_grad = index_grad
+        self._index_hess_row = index_hess_row
+        self._index_hess_col = index_hess_col
+
+    def _gen_code(self) -> None:
+        def symbol_buffer():
+            cnt = 0
+            while True:
+                yield sp.Symbol(f"buffer[{cnt}]")
+                cnt += 1
+
+        cse_value = sp.cse(
+            self._expr_value, symbols=symbol_buffer(), optimizations="basic"
+        )
+        cse_grad = sp.cse(
+            self._expr_grad, symbols=symbol_buffer(), optimizations="basic"
+        )
+        cse_hess = sp.cse(
+            self._expr_hess, symbols=symbol_buffer(), optimizations="basic"
+        )
+
+        gen_buffer_code = (
+            lambda x: f"    {lambdarepr(x[0])} = {lambdarepr(self.__expand_opt(x[1])).replace('math.', '')}\n"
+        )
+        buffer_code_value = "".join(map(gen_buffer_code, cse_value[0]))
+        buffer_code_grad = "".join(map(gen_buffer_code, cse_grad[0]))
+        buffer_code_hess = "".join(map(gen_buffer_code, cse_hess[0]))
+
+        gen_output_code = (
+            lambda x: f"    output[{x[0]}] = {lambdarepr(self.__expand_opt(x[1])).replace('math.', '')}\n"
+        )
+        output_code_value = "".join(map(gen_output_code, enumerate(cse_value[1])))
+        output_code_grad = "".join(map(gen_output_code, enumerate(cse_grad[1])))
+        output_code_hess = "".join(map(gen_output_code, enumerate(cse_hess[1])))
+
+        prelude_code_value = _deco(self._parallel, self._fastmath)
+        prelude_code_value += "def F(x, n):\n"
+        prelude_code_value += "    buffer = empty(({}, n), dtype=float64)\n".format(
+            len(cse_value[0])
+        )
+        prelude_code_value += (
+            f"    output = empty(({len(cse_value[1])}, n), dtype=float64)\n"
+        )
+        prelude_code_grad = _deco(self._parallel, self._fastmath)
+        prelude_code_grad += "def G(x, n):\n"
+        prelude_code_grad += "    buffer = empty(({}, n), dtype=float64)\n".format(
+            len(cse_grad[0])
+        )
+        prelude_code_grad += (
+            f"    output = empty(({len(cse_grad[1])}, n), dtype=float64)\n"
+        )
+        prelude_code_hess = _deco(self._parallel, self._fastmath)
+        prelude_code_hess += "def H(x, n):\n"
+        prelude_code_hess += "    buffer = empty(({}, n), dtype=float64)\n".format(
+            len(cse_hess[0])
+        )
+        prelude_code_hess += (
+            f"    output = empty(({len(cse_hess[1])}, n), dtype=float64)\n"
+        )
+
+        finalize_code = "    return output\n\n"
+
+        self._code_value = (
+            prelude_code_value + buffer_code_value + output_code_value + finalize_code
+        )
+        self._code_grad = (
+            prelude_code_grad + buffer_code_grad + output_code_grad + finalize_code
+        )
+        self._code_hess = (
+            prelude_code_hess + buffer_code_hess + output_code_hess + finalize_code
+        )
+
+        for i in range(len(self._args)):
+            self._code_value = self._code_value.replace(
+                f"xbN4dRhrnN_{i}", f"x[{i} * n:{i + 1} * n]"
+            )
+            self._code_grad = self._code_grad.replace(
+                f"xbN4dRhrnN_{i}", f"x[{i} * n:{i + 1} * n]"
+            )
+            self._code_hess = self._code_hess.replace(
+                f"xbN4dRhrnN_{i}", f"x[{i} * n:{i + 1} * n]"
+            )
 
     def _compile(self, code: str) -> None:
         tmp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False)
@@ -168,137 +257,30 @@ class FastFunc:
 
         os.unlink(tmp_file.name)
 
-    def _free_symbols(self, expr: sp.Expr) -> list[int]:
-        return sorted([self._args.index(sym) for sym in expr.free_symbols])
-
-    def _gen_basic_funcs(self) -> str:
-        result_str = ""
-        func = self._function
-
-        # value
-        if self._simplify:
-            func = sp.simplify(func)
-        if func.is_constant(simplify=self._simplify):
-            self._value_consts = float(func)
-            return ""
-
-        free_symbols_value = self._free_symbols(func)
-        self._value_index = free_symbols_value
-        deco_str = _deco_basic(len(free_symbols_value), self._parallel, self._fastmath)
-        func_str = lambdarepr(self.__expand_opt(func)).replace("math.", "")
-        param_str = ", ".join([self._args[i].name for i in free_symbols_value])
-        result_str += (
-            deco_str
-            + "def f({}):\n".format(param_str)
-            + "    return "
-            + func_str
-            + "\n\n"
-        )
-
-        for j in free_symbols_value:  # row of hessian
-            # gradient
-            grad = sp.diff(func, self._args[j])
-            if self._simplify:
-                grad = sp.simplify(grad)
-            if grad == 0:
-                continue
-            if grad.is_constant(simplify=self._simplify):
-                self._grad_consts[j] = float(grad)
-                self._grad_index.append((j, []))
-                continue
-
-            free_symbols_grad = self._free_symbols(grad)
-            self._grad_index.append((j, free_symbols_grad))
-            deco_str = _deco_basic(
-                len(free_symbols_grad), self._parallel, self._fastmath
-            )
-            grad_str = lambdarepr(self.__expand_opt(grad)).replace("math.", "")
-            param_str = ", ".join([self._args[k].name for k in free_symbols_grad])
-            result_str += (
-                deco_str
-                + "def df_d{}({}):\n".format(j, param_str)
-                + "    return "
-                + grad_str
-                + "\n\n"
-            )
-
-            # hessian
-            for k in free_symbols_value:  # col of hessian
-                if j < k:
-                    break
-                hess = sp.diff(grad, self._args[k])
-                if self._simplify:
-                    hess = sp.simplify(hess)
-                if hess == 0:
-                    continue
-                if hess.is_constant(simplify=self._simplify):
-                    self._hess_consts[(j, k)] = float(hess)
-                    self._hess_index.append((j, k, []))
-                    continue
-
-                free_symbols_hess = self._free_symbols(hess)
-                self._hess_index.append((j, k, free_symbols_hess))
-                deco_str = _deco_basic(
-                    len(free_symbols_hess), self._parallel, self._fastmath
-                )
-                hess_str = lambdarepr(self.__expand_opt(hess)).replace("math.", "")
-                param_str = ", ".join([self._args[l].name for l in free_symbols_hess])
-                result_str += (
-                    deco_str
-                    + "def d2f_d{}d{}({}):\n".format(j, k, param_str)
-                    + "    return "
-                    + hess_str
-                    + "\n\n"
-                )
-        return result_str
-
-    def _gen_aggregate_funcs(self) -> str:
-        result_str = ""
-        # value
-        result_str += _deco_F(self._parallel, self._fastmath)
-        result_str += "def F(x, n):\n"
-        result_str += "    r = zeros(n, dtype=float64)\n"
-        if self._value_consts is not None:
-            result_str += f"    r[:] = {self._value_consts}\n"
+    def _gen_index(self) -> None:
+        if self._index_grad:
+            self.G_index = np.array(sum(self._index_grad, []), dtype=np.int32)
+            num_grad = list(map(len, self._index_grad))
+            num_grad_cumsum = np.cumsum(num_grad, dtype=np.int32)
+            self.G_left = np.concatenate([[0], num_grad_cumsum[:-1]], dtype=np.int32)
+            self.G_right = num_grad_cumsum
         else:
-            param_str = ", ".join(
-                [f"x[{j} * n:{j + 1} * n]" for j in self._value_index]
-            )
-            result_str += "    r = f({})\n".format(param_str)
-        result_str += "    return r\n\n"
+            self.G_index = np.array([], dtype=np.int32)
+            self.G_left = np.array([], dtype=np.int32)
+            self.G_right = np.array([], dtype=np.int32)
 
-        # gradient
-        result_str += _deco_GH(self._parallel, self._fastmath)
-        result_str += "def G(x, n):\n"
-        result_str += f"    r = zeros(({len(self._grad_index)}, n), dtype=float64)\n"
-        for row, (x, fs) in enumerate(self._grad_index):  # fs for free symbols
-            if x in self._grad_consts:
-                result_str += f"    r[{row}] = {self._grad_consts[x]}\n"
-            else:
-                param_str = ", ".join([f"x[{j} * n:{j + 1} * n]" for j in fs])
-                result_str += "    r[{}] = df_d{}({})\n".format(row, x, param_str)
-        result_str += "    return r\n\n"
+        if self._index_hess_row:
+            self.H_index_row = np.array(sum(self._index_hess_row, []), dtype=np.int32)
+            self.H_index_col = np.array(sum(self._index_hess_col, []), dtype=np.int32)
+            num_hess = list(map(len, self._index_hess_row))
+            num_hess_cumsum = np.cumsum(num_hess, dtype=np.int32)
+            self.H_left = np.concatenate([[0], num_hess_cumsum[:-1]], dtype=np.int32)
+            self.H_right = num_hess_cumsum
+        else:
+            self.H_index_row = np.array([], dtype=np.int32)
+            self.H_index_col = np.array([], dtype=np.int32)
+            self.H_left = np.array([], dtype=np.int32)
+            self.H_right = np.array([], dtype=np.int32)
 
-        # hessian
-        result_str += _deco_GH(self._parallel, self._fastmath)
-        result_str += "def H(x, n):\n"
-        result_str += f"    r = zeros(({len(self._hess_index)}, n), dtype=float64)\n"
-        for row, (x, y, fs) in enumerate(self._hess_index):
-            if (x, y) in self._hess_consts:
-                result_str += f"    r[{row}] = {self._hess_consts[(x, y)]}\n"
-            else:
-                param_str = ", ".join([f"x[{j} * n:{j + 1} * n]" for j in fs])
-                result_str += "    r[{}] = d2f_d{}d{}({})\n".format(
-                    row, x, y, param_str
-                )
-        result_str += "    return r\n\n"
-
-        return result_str
-
-    def _gen_G_index(self) -> VecInt:
-        return np.array([x for x, _ in self._grad_index], dtype=np.int32)
-
-    def _gen_H_index(self) -> tuple[VecInt, VecInt]:
-        return np.array([x for x, _, _ in self._hess_index], dtype=np.int32), np.array(
-            [y for _, y, _ in self._hess_index], dtype=np.int32
-        )
+    def __len__(self) -> int:
+        return self._len_function

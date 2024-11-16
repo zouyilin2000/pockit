@@ -1,18 +1,13 @@
 # Copyright (c) 2024 Yilin Zou
-import itertools as it
 from collections import namedtuple
 from enum import Enum
-from typing import Callable, Optional, Self
-from abc import ABC, abstractmethod
-import scipy.sparse
 
 import sympy as sp
 
 from .autoupdate import AutoUpdate
+from .discretizationbase import *
 from .easyderiv import *
 from .fastfunc import FastFunc
-from .vectypes import *
-from .discretizationbase import *
 
 
 class BcType(Enum):
@@ -41,7 +36,6 @@ class PhaseBase(ABC):
 
     def __init__(
         self,
-        # class_discretization: type[DiscretizationBase],
         identifier: int,
         state: int | list[str],
         control: int | list[str],
@@ -251,10 +245,9 @@ class PhaseBase(ABC):
             )
 
         self._expr_dynamics = [sp.sympify(d) for d in dynamics]
-        self._func_dynamics = [
-            FastFunc(d, self._symbols, *self._compile_parameters)
-            for d in self._expr_dynamics
-        ]
+        self._func_dynamics = FastFunc(
+            self._expr_dynamics, self._symbols, *self._compile_parameters
+        )
 
         self._auto_update.update(0)
         self._dynamics_set = True
@@ -271,10 +264,9 @@ class PhaseBase(ABC):
         """
         self._num_integral = len(integral)
         self._expr_integral = [sp.sympify(i) for i in integral]
-        self._func_integral = [
-            FastFunc(i, self._symbols, *self._compile_parameters)
-            for i in self._expr_integral
-        ]
+        self._func_integral = FastFunc(
+            self._expr_integral, self._symbols, *self._compile_parameters
+        )
 
         self._symbol_integral = [
             sp.Symbol(f"I_{i}^{{({self._identifier})}}")
@@ -339,10 +331,9 @@ class PhaseBase(ABC):
                 self._expr_phase_constraint.append(sp.sympify(c))
                 lower_bound_phase_constraint.append(lb)
                 upper_bound_phase_constraint.append(ub)
-        self._func_phase_constraint = [
-            FastFunc(c, self._symbols, *self._compile_parameters)
-            for c in self._expr_phase_constraint
-        ]
+        self._func_phase_constraint = FastFunc(
+            self._expr_phase_constraint, self._symbols, *self._compile_parameters
+        )
 
         self._num_phase_constraint = len(self._expr_phase_constraint)
         self._lower_bound_phase_constraint = np.array(
@@ -355,7 +346,7 @@ class PhaseBase(ABC):
         # scale to [0, 1]
         if isinstance(bang_bang_control, bool):
             bang_bang_control = [bang_bang_control] * self._num_phase_constraint
-        self._func_bang_bang_control = []
+        expr_bang_bang_control = []
         for expr, lb, rb, bb in zip(
             phase_constraint, lower_bound, upper_bound, bang_bang_control
         ):
@@ -368,15 +359,12 @@ class PhaseBase(ABC):
                     raise ValueError(
                         "lower_bound must be strictly less than upper_bound for bang-bang control constraint"
                     )
-                self._func_bang_bang_control.append(
-                    FastFunc(
-                        (expr - lb) / (rb - lb),
-                        self._symbols,
-                        *self._compile_parameters,
-                    )
-                )
+                expr_bang_bang_control.append((expr - lb) / (rb - lb))
+        self._func_bang_bang_control = FastFunc(
+            expr_bang_bang_control, self._symbols, *self._compile_parameters
+        )
 
-        self._num_bang_bang = len(self._func_bang_bang_control)
+        self._num_bang_bang = len(expr_bang_bang_control)
 
         self._auto_update.update(2)
         self._phase_constraint_set = True
@@ -391,7 +379,9 @@ class PhaseBase(ABC):
         elif isinstance(bc, sp.Expr):
             return BcInfo(
                 BcType.FUNC,
-                FastFunc(bc, self._symbol_static_parameter, *self._compile_parameters),
+                FastFunc(
+                    [bc], self._symbol_static_parameter, *self._compile_parameters
+                ),
             )
         else:
             raise ValueError("boundary condition must be None, number or sp.Expr")
@@ -527,6 +517,9 @@ class PhaseBase(ABC):
                 [np.full(self.index_mstage.L_m, 1.0, dtype=np.float64)]
             )
 
+        self._I_m_T = self.I_m.T.tocsc()
+        self._I_m_aug_T = self.I_m_aug.T.tocsc()
+
         self._auto_update.update(4)
         self._discretization_set = True
         return self
@@ -616,26 +609,26 @@ class PhaseBase(ABC):
         self._auto_update.update(5)
 
     def _update_node_function(
-        self, funcs: list[FastFunc]
+        self, func: FastFunc
     ) -> tuple[list[Node], list[Node], list[Node]]:
-        l_f = len(funcs)
+        l_f = len(func)
         nodes_front = [Node() for _ in range(l_f)]
         nodes_middle = [Node() for _ in range(l_f)]
         nodes_back = [Node() for _ in range(l_f)]
-        for i in range(len(funcs)):
+        for i in range(len(func)):
             nodes_front[i].args = self._node_front
-            nodes_front[i].g_i = funcs[i].G_index
-            nodes_front[i].h_i_row = funcs[i].H_index_row
-            nodes_front[i].h_i_col = funcs[i].H_index_col
+            nodes_front[i].g_i = func.G_index[func.G_left[i] : func.G_right[i]]
+            nodes_front[i].h_i_row = func.H_index_row[func.H_left[i] : func.H_right[i]]
+            nodes_front[i].h_i_col = func.H_index_col[func.H_left[i] : func.H_right[i]]
             nodes_middle[i].l = self.index_mstage.L_m
             nodes_middle[i].args = self._node_middle
-            nodes_middle[i].g_i = funcs[i].G_index
-            nodes_middle[i].h_i_row = funcs[i].H_index_row
-            nodes_middle[i].h_i_col = funcs[i].H_index_col
+            nodes_middle[i].g_i = func.G_index[func.G_left[i] : func.G_right[i]]
+            nodes_middle[i].h_i_row = func.H_index_row[func.H_left[i] : func.H_right[i]]
+            nodes_middle[i].h_i_col = func.H_index_col[func.H_left[i] : func.H_right[i]]
             nodes_back[i].args = self._node_back
-            nodes_back[i].g_i = funcs[i].G_index
-            nodes_back[i].h_i_row = funcs[i].H_index_row
-            nodes_back[i].h_i_col = funcs[i].H_index_col
+            nodes_back[i].g_i = func.G_index[func.G_left[i] : func.G_right[i]]
+            nodes_back[i].h_i_row = func.H_index_row[func.H_left[i] : func.H_right[i]]
+            nodes_back[i].h_i_col = func.H_index_col[func.H_left[i] : func.H_right[i]]
         forward_gradient_i(nodes_front + nodes_middle + nodes_back)
         forward_hessian_phase_i(nodes_front + nodes_middle + nodes_back)
         return nodes_front, nodes_middle, nodes_back
@@ -888,29 +881,22 @@ class PhaseBase(ABC):
 
     def _value_integral(self, which, x: VecFloat, s: VecFloat):
         vb, dt = self._value_basic(x, s)
-        vi = [
-            self.F_I[i].F(vb, self.L_m) if flag else None
-            for i, flag in enumerate(which)
-        ]
-        return np.array(
-            [vi_.dot(self.w_m) * dt if vi_ is not None else 0.0 for vi_ in vi],
-            dtype=np.float64,
-        )
+        vi = self.F_I.F(vb, self.L_m)
+        return vi @ self.w_m * dt
 
     def _value_dynamic_constraint(self, x: VecFloat, s: VecFloat):
         vb, dt = self._value_basic(x, s)
-        Tx = [self.T_v.dot(x[self.l_v[i] : self.r_v[i]]) for i in range(self.n_x)]
-        If = [self.I_m.dot(f_d.F(vb, self.L_m)) * dt for f_d in self.F_d]
-        return np.concatenate([tx_ - if_ for tx_, if_ in zip(Tx, If)], dtype=np.float64)
+        Tx = np.array(
+            [self.T_v.dot(x[self.l_v[i] : self.r_v[i]]) for i in range(self.n_x)],
+            dtype=np.float64,
+        )
+        If = self.F_d.F(vb, self.L_m) @ self._I_m_T * dt
+        return (Tx - If).flatten()
+        # return np.concatenate([tx_ - if_ for tx_, if_ in zip(Tx, If)], dtype=np.float64)
 
     def _value_phase_constraint(self, x: VecFloat, s: VecFloat):
         vb, _ = self._value_basic(x, s)
-        vpc = [f_c.F(vb, self.L_m) for f_c in self.F_c]
-        return (
-            np.concatenate(vpc, dtype=np.float64)
-            if vpc
-            else np.array([], dtype=np.float64)
-        )
+        return self.F_c.F(vb, self.L_m).flatten()
 
     def _grad_basic(self, x: VecFloat, s: VecFloat):
         for i, bc_info in enumerate(self.info_bc_0):
@@ -927,10 +913,12 @@ class PhaseBase(ABC):
 
     def _grad_integral(self, which, x: VecFloat, s: VecFloat):
         vb, dt = self._value_basic(x, s)
+        f_all = self.F_I.F(vb, self.L_m)
+        g_all = self.F_I.G(vb, self.L_m)
         for i, flag in enumerate(which):
             if flag:
-                f = self.F_I[i].F(vb, self.L_m)
-                g = self.F_I[i].G(vb, self.L_m)
+                f = f_all[i]
+                g = g_all[self.F_I.G_left[i] : self.F_I.G_right[i]]
                 if self.index_mstage.f:
                     integral_unscaled_front_V = np.array([f[0]], dtype=np.float64)
                     self._node_integral_unscaled_front[i].g = g[:, :1]
@@ -973,9 +961,11 @@ class PhaseBase(ABC):
                 jac_T.append(np.kron(self.T_v_coo.b.data, G_back))
 
         vb, dt = self._value_basic(x, s)
+        f_all = self.F_d.F(vb, self.L_m)
+        g_all = self.F_d.G(vb, self.L_m)
         for i in range(self.n_x):
-            f = self.F_d[i].F(vb, self.L_m)
-            g = self.F_d[i].G(vb, self.L_m)
+            f = f_all[i]
+            g = g_all[self.F_d.G_left[i] : self.F_d.G_right[i]]
             if self.index_mstage.f:
                 dynamics_unscaled_front_V = np.array([f[0]], dtype=np.float64)
                 self._node_dynamics_unscaled_front[i].g = g[:, :1]
@@ -1021,8 +1011,9 @@ class PhaseBase(ABC):
 
     def _grad_phase_constraint(self, x: VecFloat, s: VecFloat):
         vb, _ = self._value_basic(x, s)
-        for i, f in enumerate(self._func_phase_constraint):
-            g = f.G(vb, self.L_m)
+        g_all = self.F_c.G(vb, self.L_m)
+        for i in range(self.n_c):
+            g = g_all[self.F_c.G_left[i] : self.F_c.G_right[i]]
             if self.index_mstage.f:
                 self._node_phase_constraint_front[i].g = g[:, :1]
             self._node_phase_constraint_middle[i].g = g[:, self.index_mstage.m]
@@ -1063,11 +1054,14 @@ class PhaseBase(ABC):
 
     def _hess_integral(self, which, x: VecFloat, s: VecFloat):
         vb, dt = self._value_basic(x, s)
+        f_all = self.F_I.F(vb, self.L_m)
+        g_all = self.F_I.G(vb, self.L_m)
+        h_all = self.F_I.H(vb, self.L_m)
         for i, flag in enumerate(which):
             if flag:
-                f = self.F_I[i].F(vb, self.L_m)
-                g = self.F_I[i].G(vb, self.L_m)
-                h = self.F_I[i].H(vb, self.L_m)
+                f = f_all[i]
+                g = g_all[self.F_I.G_left[i] : self.F_I.G_right[i]]
+                h = h_all[self.F_I.H_left[i] : self.F_I.H_right[i]]
                 if self.index_mstage.f:
                     integral_unscaled_front_V = np.array([f[0]], dtype=np.float64)
                     self._node_integral_unscaled_front[i].g = g[:, :1]
@@ -1122,10 +1116,13 @@ class PhaseBase(ABC):
                 )
 
         vb, dt = self._value_basic(x, s)
+        f_all = self.F_d.F(vb, self.L_m)
+        g_all = self.F_d.G(vb, self.L_m)
+        h_all = self.F_d.H(vb, self.L_m)
         for i in range(self.n_x):
-            f = self.F_d[i].F(vb, self.L_m)
-            g = self.F_d[i].G(vb, self.L_m)
-            h = self.F_d[i].H(vb, self.L_m)
+            f = f_all[i]
+            g = g_all[self.F_d.G_left[i] : self.F_d.G_right[i]]
+            h = h_all[self.F_d.H_left[i] : self.F_d.H_right[i]]
             if self.index_mstage.f:
                 dynamics_unscaled_front_V = np.array([f[0]], dtype=np.float64)
                 self._node_dynamics_unscaled_front[i].g = g[:, :1]
@@ -1194,9 +1191,11 @@ class PhaseBase(ABC):
 
     def _hess_phase_constraint(self, x: VecFloat, s: VecFloat, fct: VecFloat):
         vb, _ = self._value_basic(x, s)
-        for i, f in enumerate(self._func_phase_constraint):
-            g = f.G(vb, self.L_m)
-            h = f.H(vb, self.L_m)
+        g_all = self.F_c.G(vb, self.L_m)
+        h_all = self.F_c.H(vb, self.L_m)
+        for i in range(self.n_c):
+            g = g_all[self.F_c.G_left[i] : self.F_c.G_right[i]]
+            h = h_all[self.F_c.H_left[i] : self.F_c.H_right[i]]
             if self.index_mstage.f:
                 self._node_phase_constraint_front[i].g = g[:, :1]
                 self._node_phase_constraint_front[i].h = h[:, :1]
@@ -1249,19 +1248,14 @@ class PhaseBase(ABC):
     ) -> tuple[VecFloat, VecFloat]:
         vb_aug, dt = self._value_basic_aug(x, s)
         T_x_aug = self.T_x_aug.dot(x[: self.L_x]).reshape(self.n_x, -1)
-        I_f_aug = (
-            np.array(
-                [self.I_m_aug.dot(f_d.F(vb_aug, self.L_m_aug)) for f_d in self.F_d]
-            )
-            * dt
-        )
+        I_f_aug = self.F_d.F(vb_aug, self.L_m_aug) @ self._I_m_aug_T * dt
         return T_x_aug, I_f_aug
 
     def _error_estimation_data_discontinuous(
         self, x: VecFloat, s: VecFloat
     ) -> VecFloat:
         vb, _ = self._value_basic(x, s)
-        return np.array([f_bb.F(vb, self.L_m) for f_bb in self.F_b], dtype=np.float64)
+        return self.F_b.F(vb, self.L_m)
 
     def _error_check_interval_continuous(
         self, T_x_aug, I_f_aug, atol, rtol, mtol
@@ -1867,8 +1861,8 @@ class PhaseBase(ABC):
         return self._symbol_time
 
     @property
-    def F_d(self) -> list[FastFunc]:
-        """:class:`pockit.base.fastfunc.FastFunc` s of dynamics."""
+    def F_d(self) -> FastFunc:
+        """:class:`pockit.base.fastfunc.FastFunc` of dynamics."""
         return self._func_dynamics
 
     @property
@@ -1877,8 +1871,8 @@ class PhaseBase(ABC):
         return self._num_state
 
     @property
-    def F_I(self) -> list[FastFunc]:
-        """:class:`pockit.base.fastfunc.FastFunc` s of integrals."""
+    def F_I(self) -> FastFunc:
+        """:class:`pockit.base.fastfunc.FastFunc` of integrals."""
         return self._func_integral
 
     @property
@@ -1892,8 +1886,8 @@ class PhaseBase(ABC):
         return self._symbol_integral
 
     @property
-    def F_c(self) -> list[FastFunc]:
-        """:class:`pockit.base.fastfunc.FastFunc` s of phase constraints."""
+    def F_c(self) -> FastFunc:
+        """:class:`pockit.base.fastfunc.FastFunc` of phase constraints."""
         return self._func_phase_constraint
 
     @property
@@ -1937,8 +1931,8 @@ class PhaseBase(ABC):
         return self._terminal_value
 
     @property
-    def F_b(self) -> list[FastFunc]:
-        """:class:`pockit.base.fastfunc.FastFunc` s of bang-bang constraints.
+    def F_b(self) -> FastFunc:
+        """:class:`pockit.base.fastfunc.FastFunc` of bang-bang constraints.
 
         (scaled to ``[0, 1]``.)
         """

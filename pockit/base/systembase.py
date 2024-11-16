@@ -201,7 +201,7 @@ class SystemBase(ABC):
         """
         self._expr_objective = sp.sympify(objective)
         self._func_objective = FastFunc(
-            self._expr_objective,
+            [self._expr_objective],
             self._symbols,
             *self._compile_parameters,
         )
@@ -329,10 +329,10 @@ class SystemBase(ABC):
                 lower_bound_system_constraint.append(lb)
                 upper_bound_system_constraint.append(ub)
 
-        self._func_system_constraint = [
-            FastFunc(c, self._symbols, *self._compile_parameters)
-            for c in self._expr_system_constraint
-        ]
+        self._func_system_constraint = FastFunc(
+            self._expr_system_constraint, self._symbols, *self._compile_parameters
+        )
+
         self._num_system_constraint = len(self._expr_system_constraint)
         self._lower_bound_system_constraint = np.array(lower_bound_system_constraint)
         self._upper_bound_system_constraint = np.array(upper_bound_system_constraint)
@@ -416,12 +416,16 @@ class SystemBase(ABC):
         self._which_system_constraint = which_system_constraint
 
         self._node_system_constraint = []
-        for c_, c in enumerate(self._func_system_constraint):
+        for c_ in range(self.n_c):
             node = Node()
             node.args = self._node_basic
-            node.g_i = c.G_index
-            node.h_i_row = c.H_index_row
-            node.h_i_col = c.H_index_col
+            node.g_i = self.F_c.G_index[self.F_c.G_left[c_] : self.F_c.G_right[c_]]
+            node.h_i_row = self.F_c.H_index_row[
+                self.F_c.H_left[c_] : self.F_c.H_right[c_]
+            ]
+            node.h_i_col = self.F_c.H_index_col[
+                self.F_c.H_left[c_] : self.F_c.H_right[c_]
+            ]
             self._node_system_constraint.append(node)
 
         forward_gradient_i(self._node_system_constraint)
@@ -577,13 +581,11 @@ class SystemBase(ABC):
     def objective(self, x: VecFloat) -> np.float64:
         """The objective function of the discretized optimization problem."""
         vb = self._value_basic(self._which_objective, x)
-        return self._func_objective.F(vb, 1)[0]
+        return self._func_objective.F(vb, 1)[0, 0]
 
     def _system_constraint(self, x: VecFloat) -> VecFloat:
         vb = self._value_basic(self._which_system_constraint, x)
-        return np.array(
-            [f_c.F(vb, 1)[0] for f_c in self._func_system_constraint], dtype=np.float64
-        )
+        return self.F_c.F(vb, 1).flatten()
 
     def constraints(self, x: VecFloat) -> VecFloat:
         """Constraint functions of the discretized optimization problem."""
@@ -623,7 +625,7 @@ class SystemBase(ABC):
         problem."""
         self._grad_basic(self._which_objective, x)
         vb = self._value_basic(self._which_objective, x)
-        self._node_objective.g = self._func_objective.G(vb, 1)
+        self._node_objective.g = self.F_o.G(vb, 1)
         forward_gradient_v([self._node_objective])
 
         grad = np.zeros(self.L, dtype=np.float64)
@@ -636,8 +638,11 @@ class SystemBase(ABC):
         problem."""
         self._grad_basic(self._which_system_constraint, x)
         vb = self._value_basic(self._which_system_constraint, x)
+        g_all = self.F_c.G(vb, 1)
         for i in range(self._num_system_constraint):
-            self._node_system_constraint[i].g = self._func_system_constraint[i].G(vb, 1)
+            self._node_system_constraint[i].g = g_all[
+                self.F_c.G_left[i] : self.F_c.G_right[i]
+            ]
         forward_gradient_v(self._node_system_constraint)
 
         jac = [G_ for node in self._node_system_constraint for G_ in node.G]
@@ -720,8 +725,8 @@ class SystemBase(ABC):
         """
         self._hess_basic(self._which_objective, x)
         vb = self._value_basic(self._which_objective, x)
-        self._node_objective.g = self._func_objective.G(vb, 1)
-        self._node_objective.h = self._func_objective.H(vb, 1)
+        self._node_objective.g = self.F_o.G(vb, 1)
+        self._node_objective.h = self.F_o.H(vb, 1)
         forward_gradient_v([self._node_objective])
         forward_hessian_system_v([self._node_objective])
         return (
@@ -742,9 +747,15 @@ class SystemBase(ABC):
     def _hess_system_constraint(self, x: VecFloat, fct_c: VecFloat) -> VecFloat:
         self._hess_basic(self._which_system_constraint, x)
         vb = self._value_basic(self._which_system_constraint, x)
+        g_all = self.F_c.G(vb, 1)
+        h_all = self.F_c.H(vb, 1)
         for i in range(self._num_system_constraint):
-            self._node_system_constraint[i].g = self._func_system_constraint[i].G(vb, 1)
-            self._node_system_constraint[i].h = self._func_system_constraint[i].H(vb, 1)
+            self._node_system_constraint[i].g = g_all[
+                self.F_c.G_left[i] : self.F_c.G_right[i]
+            ]
+            self._node_system_constraint[i].h = h_all[
+                self.F_c.H_left[i] : self.F_c.H_right[i]
+            ]
         forward_gradient_v(self._node_system_constraint)
         forward_hessian_system_v(self._node_system_constraint)
 
@@ -1245,7 +1256,7 @@ class SystemBase(ABC):
         return self._num_system_constraint
 
     @property
-    def F_c(self) -> list[FastFunc]:
+    def F_c(self) -> FastFunc:
         """:class:`pockit.base.fastfunc.FastFunc` s of system constraints."""
         return self._func_system_constraint
 
