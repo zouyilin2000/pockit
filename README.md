@@ -10,7 +10,7 @@
 - 🔢 **Easy to use:** Pockit is designed to be user-friendly. It provides a [SymPy](https://www.sympy.org/)-based, intuitive interface for defining and solving problems.
 - ⚡ **Fast:** Pockit is fast. It uses various techniques to speed up the entire compilation and solution process, including symbolic differentiation (with [SymPy](https://www.sympy.org/)), Just-In-Time compilation (with [Numba](https://numba.pydata.org/)), vectorization, and more.
 
-For more information, please visit the [documentation](http://pockit-docs.notion.site/) and [API reference](https://pockit-api.pages.dev/).
+For more information, please visit the [documentation](https://pockit.pages.dev) and [API reference](https://pockit-api.pages.dev/).
 
 ## LQR in 1 Minute
 ```python
