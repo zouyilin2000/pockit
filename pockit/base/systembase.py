@@ -1,5 +1,6 @@
 # Copyright (c) 2024 Yilin Zou
-from typing import Iterable, Self
+import os
+from typing import Iterable, Self, Optional
 from abc import ABC, abstractmethod
 
 import sympy as sp
@@ -193,17 +194,19 @@ class SystemBase(ABC):
         self._phase_set = True
         return self
 
-    def set_objective(self, objective: float | sp.Expr) -> Self:
+    def set_objective(self, objective: float | sp.Expr, *, cache: Optional[str]=None) -> Self:
         """Set the objective of the system.
 
         Args:
             objective: Objective of the system composed with I and s.
+            cache: path to the directory to store the compiled functions.
         """
         self._expr_objective = sp.sympify(objective)
         self._func_objective = FastFunc(
             self._expr_objective,
             self._symbols,
             *self._compile_parameters,
+            cache=None if cache is None else os.path.join(cache, "objective.py"),
         )
 
         self._auto_update.update(1)
@@ -215,6 +218,8 @@ class SystemBase(ABC):
         system_constraint: list[sp.Expr],
         lower_bound: Iterable[float],
         upper_bound: Iterable[float],
+        *,
+        cache: Optional[str]=None,
     ) -> Self:
         """Set the system constraints of the system.
 
@@ -226,6 +231,7 @@ class SystemBase(ABC):
             system_constraint: List of system constraints composed with I and s.
             lower_bound: Iterable of lower bounds of system constraints.
             upper_bound: Iterable of upper bounds of system constraints.
+            cache: path to the directory to store the compiled functions.
         """
         lower_bound = list(lower_bound)
         upper_bound = list(upper_bound)
@@ -236,6 +242,7 @@ class SystemBase(ABC):
         self._system_constraint_user = system_constraint
         self._system_constraint_user_lower_bound = lower_bound
         self._system_constraint_user_upper_bound = upper_bound
+        self._cache_system_constraint = cache
         self._auto_update.update(2)
         self._system_constraint_set = True
         return self
@@ -329,10 +336,17 @@ class SystemBase(ABC):
                 lower_bound_system_constraint.append(lb)
                 upper_bound_system_constraint.append(ub)
 
-        self._func_system_constraint = [
-            FastFunc(c, self._symbols, *self._compile_parameters)
-            for c in self._expr_system_constraint
-        ]
+        if self._cache_system_constraint is None:
+            self._func_system_constraint = [
+                FastFunc(sc, self._symbols, *self._compile_parameters, cache=None)
+                for sc in self._expr_system_constraint
+            ]
+        else:
+            self._func_system_constraint = [
+                FastFunc(sc, self._symbols, *self._compile_parameters,
+                         cache=os.path.join(self._cache_system_constraint, f"system_constraint_{i}.py"))
+                for i, sc in enumerate(self._expr_system_constraint)
+            ]
         self._num_system_constraint = len(self._expr_system_constraint)
         self._lower_bound_system_constraint = np.array(lower_bound_system_constraint)
         self._upper_bound_system_constraint = np.array(upper_bound_system_constraint)

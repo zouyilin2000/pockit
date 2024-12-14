@@ -1,11 +1,11 @@
 # Copyright (c) 2024 Yilin Zou
+import os
 import itertools as it
 from collections import namedtuple
 from enum import Enum
 from typing import Callable, Optional, Self
 from abc import ABC, abstractmethod
 import scipy.sparse
-
 import sympy as sp
 
 from .autoupdate import AutoUpdate
@@ -239,28 +239,34 @@ class PhaseBase(ABC):
         self.set_integral([])  # no integral by default
         self.set_phase_constraint([], [], [])  # no phase constraint by default
 
-    def set_dynamics(self, dynamics: list[float | sp.Expr]) -> Self:
+    def set_dynamics(self, dynamics: list[float | sp.Expr], *, cache: Optional[str]=None) -> Self:
         """Set the dynamics of the phase.
 
         Args:
             dynamics: list of time derivatives of states composed with x, u, t, and s.
+            cache: path to the directory to store the compiled functions.
         """
         if len(dynamics) != self.n_x:
             raise ValueError(
                 "the number of dynamics must be equal to the number of state variables"
             )
 
+        if cache is None:
+            cache_dynamic = it.repeat(None)
+        else:
+            cache_dynamic = (os.path.join(cache, f"dynamic_{i}.py") for i in range(self.n_x))
+
         self._expr_dynamics = [sp.sympify(d) for d in dynamics]
         self._func_dynamics = [
-            FastFunc(d, self._symbols, *self._compile_parameters)
-            for d in self._expr_dynamics
+            FastFunc(d, self._symbols, *self._compile_parameters, cache=c)
+            for d, c in zip(self._expr_dynamics, cache_dynamic)
         ]
 
         self._auto_update.update(0)
         self._dynamics_set = True
         return self
 
-    def set_integral(self, integral: list[float | sp.Expr]) -> Self:
+    def set_integral(self, integral: list[float | sp.Expr], *, cache: Optional[str]=None) -> Self:
         r"""Set the integrals of the phase.
 
         Symbols :math:`I_0, I_1, \dots, I_{n - 1}` will be automatically generated and set as a list as the arrribute
@@ -268,12 +274,18 @@ class PhaseBase(ABC):
 
         Args:
             integral: list of integrals to be concerned composed with x, u, t, and s.
+            cache: path to the directory to store the compiled functions.
         """
         self._num_integral = len(integral)
+        if cache is None:
+            cache_integral = it.repeat(None)
+        else:
+            cache_integral = (os.path.join(cache, f"integral_{i}.py") for i in range(self.n_I))
+
         self._expr_integral = [sp.sympify(i) for i in integral]
         self._func_integral = [
-            FastFunc(i, self._symbols, *self._compile_parameters)
-            for i in self._expr_integral
+            FastFunc(i, self._symbols, *self._compile_parameters, cache=c)
+            for i, c in zip(self._expr_integral, cache_integral)
         ]
 
         self._symbol_integral = [
@@ -291,6 +303,8 @@ class PhaseBase(ABC):
         lower_bound: list[float],
         upper_bound: list[float],
         bang_bang_control: bool | list[bool] = False,
+        *,
+        cache: Optional[str]=None
     ) -> Self:
         """Set phase constraints of the system, which is enforced in the entire
         time interval of the phase.
@@ -308,6 +322,7 @@ class PhaseBase(ABC):
             upper_bound: list of upper bounds of phase constraints
             bang_bang_control: list of bools indicating whether the corresponding phase constraint is a bang-bang constraint.
                 Alternatively, set ``bang_bang_control`` as a single bool to apply to all phase constraints.
+            cache: path to the directory to store the compiled functions.
         """
         phase_constraint = list(phase_constraint)
         lower_bound = list(lower_bound)
@@ -339,12 +354,17 @@ class PhaseBase(ABC):
                 self._expr_phase_constraint.append(sp.sympify(c))
                 lower_bound_phase_constraint.append(lb)
                 upper_bound_phase_constraint.append(ub)
-        self._func_phase_constraint = [
-            FastFunc(c, self._symbols, *self._compile_parameters)
-            for c in self._expr_phase_constraint
-        ]
 
         self._num_phase_constraint = len(self._expr_phase_constraint)
+        if cache is None:
+            cache_phase_constraint = it.repeat(None)
+        else:
+            cache_phase_constraint = (os.path.join(cache, f"phase_constraint_{i}.py") for i in range(self.n_c))
+        self._func_phase_constraint = [
+            FastFunc(pc, self._symbols, *self._compile_parameters, cache=c)
+            for pc, c in zip(self._expr_phase_constraint, cache_phase_constraint)
+        ]
+
         self._lower_bound_phase_constraint = np.array(
             lower_bound_phase_constraint, dtype=np.float64
         )
@@ -383,7 +403,7 @@ class PhaseBase(ABC):
 
         return self
 
-    def _parse_boundary_condition(self, bc: None | float | sp.Expr) -> BcInfo:
+    def _parse_boundary_condition(self, bc: None | float | sp.Expr, *, cache: Optional[str]) -> BcInfo:
         if bc is None:
             return BcInfo(BcType.FREE, None)
         elif isinstance(bc, float):
@@ -391,7 +411,7 @@ class PhaseBase(ABC):
         elif isinstance(bc, sp.Expr):
             return BcInfo(
                 BcType.FUNC,
-                FastFunc(bc, self._symbol_static_parameter, *self._compile_parameters),
+                FastFunc(bc, self._symbol_static_parameter, *self._compile_parameters, cache=cache),
             )
         else:
             raise ValueError("boundary condition must be None, number or sp.Expr")
@@ -402,6 +422,8 @@ class PhaseBase(ABC):
         terminal_value: list[None | float | sp.Expr],
         initial_time: None | float | sp.Expr,
         terminal_time: None | float | sp.Expr,
+        *,
+        cache: Optional[str]=None
     ) -> Self:
         """Set the boundary condition and initial/terminal time of the phase.
 
@@ -411,8 +433,9 @@ class PhaseBase(ABC):
         Args:
             initial_value: list of initial values of states.
             terminal_value: list of terminal values of states.
-            initial_time: Initial time.
-            terminal_time: Terminal time.
+            initial_time: initial time.
+            terminal_time: terminal time.
+            cache: path to the directory to store the compiled functions.
         """
         if not len(initial_value) == len(terminal_value) == self.n_x:
             raise ValueError(
@@ -433,10 +456,28 @@ class PhaseBase(ABC):
         self._initial_time = initial_time
         self._terminal_time = terminal_time
 
-        self.info_bc_0 = [self._parse_boundary_condition(bc) for bc in initial_value]
-        self.info_bc_f = [self._parse_boundary_condition(bc) for bc in terminal_value]
-        self.info_t_0 = self._parse_boundary_condition(initial_time)
-        self.info_t_f = self._parse_boundary_condition(terminal_time)
+        if cache is None:
+            self.info_bc_0 = [self._parse_boundary_condition(bc, cache=None) for bc in initial_value]
+            self.info_bc_f = [self._parse_boundary_condition(bc, cache=None) for bc in terminal_value]
+            self.info_t_0 = self._parse_boundary_condition(initial_time, cache=None)
+            self.info_t_f = self._parse_boundary_condition(terminal_time, cache=None)
+        else:
+            self.info_bc_0 = [
+                self._parse_boundary_condition(
+                    bc, cache=os.path.join(cache, f"boundary_condition_0_{i}.py")
+                ) for i, bc in enumerate(initial_value)
+            ]
+            self.info_bc_f = [
+                self._parse_boundary_condition(
+                    bc, cache=os.path.join(cache, f"boundary_condition_f_{i}.py")
+                ) for i, bc in enumerate(terminal_value)
+            ]
+            self.info_t_0 = self._parse_boundary_condition(
+                initial_time, cache=os.path.join(cache, "boundary_condition_t_0.py")
+            )
+            self.info_t_f = self._parse_boundary_condition(
+                terminal_time, cache=os.path.join(cache, "boundary_condition_t_f.py")
+            )
 
         self._auto_update.update(3)
         self._boundary_condition_set = True
