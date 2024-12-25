@@ -64,6 +64,23 @@ def _load_module(path: str):
     return module
 
 
+def _fnv1a_hash(text: str) -> int:
+    # FNV-1a hash parameters
+    FNV_PRIME = 0x01000193
+    FNV_OFFSET_BASIS = 0x811C9DC5
+    
+    # Convert string to bytes using UTF-8 encoding
+    byte_array = text.encode('utf-8')
+    
+    # Compute hash
+    hash_value = FNV_OFFSET_BASIS
+    for byte in byte_array:
+        hash_value ^= byte
+        hash_value = (hash_value * FNV_PRIME) & 0xFFFFFFFF
+        
+    return hash_value
+
+
 class FastFunc:
     """JITed, vectorized functions with automatic differentiation to compute
     value, gradient, and hessian.
@@ -131,10 +148,6 @@ class FastFunc:
             parallel: Whether to use Numba ``parallel`` mode.
             fastmath: Whether to use Numba ``fastmath`` mode.
         """
-        if cache is not None and os.path.isfile(cache):
-            self._load(cache)
-            return
-
         self._function = sp.sympify(function)
         self._args = args
 
@@ -145,6 +158,21 @@ class FastFunc:
         for i in range(len(args)):
             self._function = self._function.subs(args[i], self._valid_args[i])
         self._args = self._valid_args
+
+        self._hash = "# hash {}\n".format(_fnv1a_hash(str(self._function) + str(len(self._args))))
+
+        if cache is not None and os.path.isfile(cache):
+            with open(cache, "r") as file:
+                hash_file = file.readline()
+                if hash_file == self._hash:
+                    # The file is auto-generated and matches the current function
+                    self._load(cache)
+                    return
+                elif not hash_file.startswith("# hash"):
+                    # The file is not auto-generated (no hash found)
+                    # Load the user-provided file directly
+                    self._load(cache)
+                    return
 
         self._simplify = simplify
         self._parallel = parallel
@@ -181,6 +209,7 @@ class FastFunc:
         if cache is not None:
             path = cache
             file = open(path, "w")
+            file.write(self._hash)
         else:
             file = tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False)
             path = file.name
