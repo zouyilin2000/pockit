@@ -12,15 +12,21 @@
 
 For more information, visit the [documentation](https://pockit.pages.dev) and [API reference](https://pockit-api.pages.dev/).
 
+总之，pockit 利用伪谱法数值求解最优控制问题，挺好用的。请访问 [pockit 文档](https://pockit.pages.dev) 和 [API 文档](https://pockit-api.pages.dev) 获取详细信息。
+
 ## Issues and Bug Reports
 
 For any issues, questions, or bug reports, please open a GitHub issue at the [project's issue tracker](https://github.com/zouyilin2000/pockit/issues). 
+
+如果有任何问题，最好直接在 GitHub Issues 上讨论，这样讨论比较集中而且大家都能看到。中文、英文都可以，现在自动翻译已经比较好用，可以自行翻译。
 
 ## Support the Project
 
 If you find pockit helpful, please consider starring the project on GitHub. Thank you!
 
 To support the project's development financially, you can make a contribution via PayPal: [https://www.paypal.com/paypalme/zouyilin](https://www.paypal.com/paypalme/zouyilin). Your support is greatly appreciated!
+
+如果有帮助，请帮忙点下 Star，谢谢 🙏。如果你很有钱，可以考虑赞助项目 😂。
 
 ## LQR in 1 Minute
 ```python
