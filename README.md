@@ -4,13 +4,23 @@
 
 ## Introduction
 
-**Pockit** is a Python package that solves optimal control problems numerically. It utilizes advanced techniques to be powerful, easy to use, and fast.
+**Pockit** is a Python package for solving optimal control problems numerically. It combines advanced techniques to deliver a powerful, user-friendly, and fast solution.
 
-- 💪 **Powerful:** Pockit can handle almost any optimal control problem. It employs a multiple-phase optimal control model that allows for continuous/non-continuous state and control variables, path/integral/boundary constraints, and fixed/free initial and terminal times.
-- 🔢 **Easy to use:** Pockit is designed to be user-friendly. It provides a [SymPy](https://www.sympy.org/)-based, intuitive interface for defining and solving problems.
-- ⚡ **Fast:** Pockit is fast. It uses various techniques to speed up the entire compilation and solution process, including symbolic differentiation (with [SymPy](https://www.sympy.org/)), Just-In-Time compilation (with [Numba](https://numba.pydata.org/)), vectorization, and more.
+- 💪 **Powerful:** Pockit is designed to solve multi-phase optimal control problems with support for path, algebraic, and boundary condition constraints.
+- 🔢 **User-friendly:** Pockit features a [SymPy](https://www.sympy.org/)-based interface that makes defining and solving problems intuitive.
+- ⚡ **Fast:** Pockit achieves high performance through symbolic differentiation (with [SymPy](https://www.sympy.org/)), Just-In-Time compilation (with [Numba](https://numba.pydata.org/)), vectorization, and other advanced techniques.
 
-For more information, please visit the [documentation](https://pockit.pages.dev) and [API reference](https://pockit-api.pages.dev/).
+For more information, visit the [documentation](https://pockit.pages.dev) and [API reference](https://pockit-api.pages.dev/).
+
+## Issues and Bug Reports
+
+For any issues, questions, or bug reports, please open a GitHub issue at the [project's issue tracker](https://github.com/zouyilin2000/pockit/issues). 
+
+## Support the Project
+
+If you find pockit helpful, please consider starring the project on GitHub. Thank you!
+
+To support the project's development financially, you can make a contribution via PayPal: [https://www.paypal.com/paypalme/zouyilin](https://www.paypal.com/paypalme/zouyilin). Your support is greatly appreciated!
 
 ## LQR in 1 Minute
 ```python
@@ -57,13 +67,3 @@ plt.grid(linestyle='--')
 plt.show()
 ```
 ![Result of the LQR Problem](images/lqr_readme.png)
-
-## Join the Community
-
-Discord: [https://discord.gg/A47hj9x9F9](https://discord.gg/A47hj9x9F9)
-
-## Support the Project
-
-If you like pockit, please consider supporting the project by giving it a star on GitHub. It helps the project grow and reach more people. Thank you!
-
-If you would like to sponsor the project or the author financially, please use the PayPal link: [https://www.paypal.com/paypalme/zouyilin](https://www.paypal.com/paypalme/zouyilin). Your support is greatly appreciated!

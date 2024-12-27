@@ -243,8 +243,8 @@ class PhaseBase(ABC):
         """Set the dynamics of the phase.
 
         Args:
-            dynamics: list of time derivatives of states composed with x, u, t, and s.
-            cache: path to the directory to store the compiled functions.
+            dynamics: List of time derivatives of states composed with x, u, t, and s.
+            cache: Path to the directory to store the compiled functions.
         """
         if len(dynamics) != self.n_x:
             raise ValueError(
@@ -269,12 +269,12 @@ class PhaseBase(ABC):
     def set_integral(self, integral: list[float | sp.Expr], *, cache: Optional[str]=None) -> Self:
         r"""Set the integrals of the phase.
 
-        Symbols :math:`I_0, I_1, \dots, I_{n - 1}` will be automatically generated and set as a list as the arrribute
+        Symbols :math:`I_0, I_1, \dots, I_{n - 1}` will be automatically generated and set as a list as the attribute
         :attr:`I` to represent corresponding integrals.
 
         Args:
-            integral: list of integrals to be concerned composed with x, u, t, and s.
-            cache: path to the directory to store the compiled functions.
+            integral: List of integrals to be concerned composed with x, u, t, and s.
+            cache: Path to the directory to store the compiled functions.
         """
         self._num_integral = len(integral)
         if cache is None:
@@ -317,12 +317,12 @@ class PhaseBase(ABC):
         If all phase constraints are bang-bang constraints, ``bang_bang_control`` can also be set to ``True`` directly.
 
         Args:
-            phase_constraint: list of phase constraints composed with x, u, t, and s
-            lower_bound: list of lower bounds of phase constraints
-            upper_bound: list of upper bounds of phase constraints
-            bang_bang_control: list of bools indicating whether the corresponding phase constraint is a bang-bang constraint.
+            phase_constraint: List of phase constraints composed with x, u, t, and s
+            lower_bound: List of lower bounds of phase constraints
+            upper_bound: List of upper bounds of phase constraints
+            bang_bang_control: List of bools indicating whether the corresponding phase constraint is a bang-bang constraint.
                 Alternatively, set ``bang_bang_control`` as a single bool to apply to all phase constraints.
-            cache: path to the directory to store the compiled functions.
+            cache: Path to the directory to store the compiled functions.
         """
         phase_constraint = list(phase_constraint)
         lower_bound = list(lower_bound)
@@ -431,11 +431,11 @@ class PhaseBase(ABC):
         ``None`` for free, a floating number for fixed, or :class:`sympy.Expr` of static parameters.
 
         Args:
-            initial_value: list of initial values of states.
-            terminal_value: list of terminal values of states.
-            initial_time: initial time.
-            terminal_time: terminal time.
-            cache: path to the directory to store the compiled functions.
+            initial_value: List of initial values of states.
+            terminal_value: List of terminal values of states.
+            initial_time: Initial time.
+            terminal_time: Terminal time.
+            cache: Path to the directory to store the compiled functions.
         """
         if not len(initial_value) == len(terminal_value) == self.n_x:
             raise ValueError(

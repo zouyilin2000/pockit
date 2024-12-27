@@ -199,7 +199,7 @@ class SystemBase(ABC):
 
         Args:
             objective: Objective of the system composed with I and s.
-            cache: path to the directory to store the compiled functions.
+            cache: Path to the directory to store the compiled functions.
         """
         self._expr_objective = sp.sympify(objective)
         self._func_objective = FastFunc(
@@ -231,7 +231,7 @@ class SystemBase(ABC):
             system_constraint: List of system constraints composed with I and s.
             lower_bound: Iterable of lower bounds of system constraints.
             upper_bound: Iterable of upper bounds of system constraints.
-            cache: path to the directory to store the compiled functions.
+            cache: Path to the directory to store the compiled functions.
         """
         lower_bound = list(lower_bound)
         upper_bound = list(upper_bound)

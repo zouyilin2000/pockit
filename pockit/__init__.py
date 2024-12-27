@@ -3,11 +3,11 @@
 
 **😃 Welcome to pockit's API documentation!**
 
-**Pockit** is a Python package that solves optimal control problems numerically. It utilizes advanced techniques to be powerful, easy to use, and fast.
+**Pockit** is a Python package for solving optimal control problems numerically. It combines advanced techniques to deliver a powerful, user-friendly, and fast solution.
 
-- 💪 **Powerful:** Pockit can handle basically any optimal problem. It employs a multiple-phase optimal control model that allows continuous/non-continuous state and control variables, path/integral/boundary constraints, and fixed/free initial and terminal time.
-- 🔢 **Easy to use:** Pockit is designed to be easy to use. It provides a [SymPy](https://www.sympy.org/)-based, intuitive interface for defining and solving problems.
-- ⚡ **Fast:** Pockit is fast. It uses various techniques to speed up the entire compilation and solution process, including symbolic differentiation (with [SymPy](https://www.sympy.org/)), Just-In-Time compilation (with [Numba](https://numba.pydata.org/)), vectorization, and more.
+- 💪 **Powerful:** Pockit is designed to solve multi-phase optimal control problems with support for path, algebraic, and boundary condition constraints.
+- 🔢 **User-friendly:** Pockit features a [SymPy](https://www.sympy.org/)-based interface that makes defining and solving problems intuitive.
+- ⚡ **Fast:** Pockit achieves high performance through symbolic differentiation (with [SymPy](https://www.sympy.org/)), Just-In-Time compilation (with [Numba](https://numba.pydata.org/)), vectorization, and other advanced techniques.
 
 Please visit the [project page](https://github.com/zouyilin2000/pockit) and the [documentation](https://pockit.pages.dev) for more information.
 """
