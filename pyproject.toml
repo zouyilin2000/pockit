@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pockit"
+version = "0.1.0"
+description = "Python Optimal Control KIT"
+authors = [
+    { name = "Yilin Zou", email = "safe.dust4704@fastmail.com" }
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = "GPL-3.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+]
+dependencies = [
+    "numpy>=1.26.0",
+    "sympy>=1.12",
+    "scipy>=1.11.3",
+    "numba>=0.58.1",
+    "cyipopt>=1.3.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/zouyilin2000/pockit"
+Issues = "https://github.com/zouyilin2000/pockit/issues"
+Documentation = "https://pockit.pages.dev"
+
+[tool.hatch.build.targets.sdist]
+only-include = ["pyproject.toml", "README.md", "LICENSE", "pockit", "tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pockit"]

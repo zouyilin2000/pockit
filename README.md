@@ -24,7 +24,7 @@ For any issues, questions, or bug reports, please open a GitHub issue at the [pr
 
 If you find pockit helpful, please consider starring the project on GitHub. Thank you!
 
-To support the project's development financially, you can make a contribution via PayPal: [https://www.paypal.com/paypalme/zouyilin](https://www.paypal.com/paypalme/zouyilin). Your support is greatly appreciated!
+To support the project's development financially, you can make a contribution via GitHub Sponsors. Your support is greatly appreciated!
 
 如果有帮助，请帮忙点下 Star，谢谢 🙏。如果你很有钱，可以考虑赞助项目 😂。
 
