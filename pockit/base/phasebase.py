@@ -374,7 +374,7 @@ class PhaseBase(ABC):
 
         # scale to [0, 1]
         if isinstance(bang_bang_control, bool):
-            bang_bang_control = [bang_bang_control] * self._num_phase_constraint
+            bang_bang_control = it.repeat(bang_bang_control)
         self._func_bang_bang_control = []
         for expr, lb, rb, bb in zip(
             phase_constraint, lower_bound, upper_bound, bang_bang_control
