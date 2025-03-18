@@ -11,7 +11,7 @@ class Variable(VariableBase):
         super().__init__(phase, data)
 
     def _assemble_x(self, V_interval) -> scipy.sparse.csr_array:
-        return self._assemble_nc(V_interval)
+        return self._assemble_c(self._num_point + 1, V_interval)
 
     def _assemble_u(self, V_interval) -> scipy.sparse.csr_array:
         return self._assemble_nc(V_interval)
