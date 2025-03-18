@@ -13,6 +13,8 @@ def V_interpolation(x_old: VecFloat, x_new: VecFloat) -> VecFloat:
     ``x_new``."""
     if not len(x_new):  # empty
         return np.array([], dtype=np.float64).reshape(0, len(x_old))
+    if len(x_old) == 1:
+        return np.ones((len(x_new), 1), dtype=np.float64)
     if np.array_equal(
         x_new, x_old
     ):  # speed up for discontinuous adaptation with no change
@@ -43,6 +45,8 @@ def D_interpolation(x_old: VecFloat, x_new: VecFloat) -> VecFloat:
     nodes ``x_new``."""
     if not len(x_new):
         return np.array([], dtype=np.float64).reshape(0, len(x_old))
+    if len(x_old) == 1:
+        return np.zeros((len(x_new), 1), dtype=np.float64)
     # scale to [0, 1]
     width = x_old[-1] - x_old[0]
     x_new = (x_new - x_old[0]) / width

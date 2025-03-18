@@ -243,7 +243,7 @@ class TestDiscretizationRadau:
         assert np.allclose(self.d.l_x, [0, 2])
 
     def test_r_x(self):
-        assert np.allclose(self.d.r_x, [2, 6])
+        assert np.allclose(self.d.r_x, [3, 6])
 
     def test_l_u(self):
         assert np.allclose(self.d.l_u, [0, 2])

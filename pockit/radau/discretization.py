@@ -526,8 +526,7 @@ class Discretization(DiscretizationBase):
 
         # data for Vriable
         self._t_x = np.concatenate([self.t_m, [1]], dtype=np.float64)
-        self._l_x, self._r_x = lr_nc(num_point)
-        self._r_x[-1] += 1
+        self._l_x, self._r_x = lr_c(num_point + 1)
         self._l_u, self._r_u = lr_nc(num_point)
 
     @property
