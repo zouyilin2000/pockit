@@ -91,6 +91,10 @@ class PhaseBase(ABC):
             self._num_state = state
             self._name_state = [f"x_{i}^{{({identifier})}}" for i in range(state)]
         elif isinstance(state, list):
+            if "t" in state:
+                raise ValueError(
+                    'Symbol "t" is reserved for time. Use a different name for state variables'
+                )
             self._name_state = [s + f"^{{({identifier})}}" for s in state]
             self._num_state = len(state)
         else:
@@ -100,6 +104,10 @@ class PhaseBase(ABC):
             self._num_control = control
             self._name_control = [f"u_{i}^{{({identifier})}}" for i in range(control)]
         elif isinstance(control, list):
+            if "t" in control:
+                raise ValueError(
+                    'Symbol "t" is reserved for time. Use a different name for control variables'
+                )
             self._name_control = [c + f"^{{({identifier})}}" for c in control]
             self._num_control = len(control)
         else:
@@ -239,7 +247,9 @@ class PhaseBase(ABC):
         self.set_integral([])  # no integral by default
         self.set_phase_constraint([], [], [])  # no phase constraint by default
 
-    def set_dynamics(self, dynamics: list[float | sp.Expr], *, cache: Optional[str]=None) -> Self:
+    def set_dynamics(
+        self, dynamics: list[float | sp.Expr], *, cache: Optional[str] = None
+    ) -> Self:
         """Set the dynamics of the phase.
 
         Args:
@@ -254,7 +264,9 @@ class PhaseBase(ABC):
         if cache is None:
             cache_dynamic = it.repeat(None)
         else:
-            cache_dynamic = (os.path.join(cache, f"dynamic_{i}.py") for i in range(self.n_x))
+            cache_dynamic = (
+                os.path.join(cache, f"dynamic_{i}.py") for i in range(self.n_x)
+            )
 
         self._expr_dynamics = [sp.sympify(d) for d in dynamics]
         self._func_dynamics = [
@@ -266,7 +278,9 @@ class PhaseBase(ABC):
         self._dynamics_set = True
         return self
 
-    def set_integral(self, integral: list[float | sp.Expr], *, cache: Optional[str]=None) -> Self:
+    def set_integral(
+        self, integral: list[float | sp.Expr], *, cache: Optional[str] = None
+    ) -> Self:
         r"""Set the integrals of the phase.
 
         Symbols :math:`I_0, I_1, \dots, I_{n - 1}` will be automatically generated and set as a list as the attribute
@@ -280,7 +294,9 @@ class PhaseBase(ABC):
         if cache is None:
             cache_integral = it.repeat(None)
         else:
-            cache_integral = (os.path.join(cache, f"integral_{i}.py") for i in range(self.n_I))
+            cache_integral = (
+                os.path.join(cache, f"integral_{i}.py") for i in range(self.n_I)
+            )
 
         self._expr_integral = [sp.sympify(i) for i in integral]
         self._func_integral = [
@@ -304,7 +320,7 @@ class PhaseBase(ABC):
         upper_bound: list[float],
         bang_bang_control: bool | list[bool] = False,
         *,
-        cache: Optional[str]=None
+        cache: Optional[str] = None,
     ) -> Self:
         """Set phase constraints of the system, which is enforced in the entire
         time interval of the phase.
@@ -359,7 +375,9 @@ class PhaseBase(ABC):
         if cache is None:
             cache_phase_constraint = it.repeat(None)
         else:
-            cache_phase_constraint = (os.path.join(cache, f"phase_constraint_{i}.py") for i in range(self.n_c))
+            cache_phase_constraint = (
+                os.path.join(cache, f"phase_constraint_{i}.py") for i in range(self.n_c)
+            )
         self._func_phase_constraint = [
             FastFunc(pc, self._symbols, *self._compile_parameters, cache=c)
             for pc, c in zip(self._expr_phase_constraint, cache_phase_constraint)
@@ -403,7 +421,9 @@ class PhaseBase(ABC):
 
         return self
 
-    def _parse_boundary_condition(self, bc: None | float | sp.Expr, *, cache: Optional[str]) -> BcInfo:
+    def _parse_boundary_condition(
+        self, bc: None | float | sp.Expr, *, cache: Optional[str]
+    ) -> BcInfo:
         if bc is None:
             return BcInfo(BcType.FREE, None)
         elif isinstance(bc, float):
@@ -411,7 +431,12 @@ class PhaseBase(ABC):
         elif isinstance(bc, sp.Expr):
             return BcInfo(
                 BcType.FUNC,
-                FastFunc(bc, self._symbol_static_parameter, *self._compile_parameters, cache=cache),
+                FastFunc(
+                    bc,
+                    self._symbol_static_parameter,
+                    *self._compile_parameters,
+                    cache=cache,
+                ),
             )
         else:
             raise ValueError("boundary condition must be None, number or sp.Expr")
@@ -423,7 +448,7 @@ class PhaseBase(ABC):
         initial_time: None | float | sp.Expr,
         terminal_time: None | float | sp.Expr,
         *,
-        cache: Optional[str]=None
+        cache: Optional[str] = None,
     ) -> Self:
         """Set the boundary condition and initial/terminal time of the phase.
 
@@ -457,20 +482,26 @@ class PhaseBase(ABC):
         self._terminal_time = terminal_time
 
         if cache is None:
-            self.info_bc_0 = [self._parse_boundary_condition(bc, cache=None) for bc in initial_value]
-            self.info_bc_f = [self._parse_boundary_condition(bc, cache=None) for bc in terminal_value]
+            self.info_bc_0 = [
+                self._parse_boundary_condition(bc, cache=None) for bc in initial_value
+            ]
+            self.info_bc_f = [
+                self._parse_boundary_condition(bc, cache=None) for bc in terminal_value
+            ]
             self.info_t_0 = self._parse_boundary_condition(initial_time, cache=None)
             self.info_t_f = self._parse_boundary_condition(terminal_time, cache=None)
         else:
             self.info_bc_0 = [
                 self._parse_boundary_condition(
                     bc, cache=os.path.join(cache, f"boundary_condition_0_{i}.py")
-                ) for i, bc in enumerate(initial_value)
+                )
+                for i, bc in enumerate(initial_value)
             ]
             self.info_bc_f = [
                 self._parse_boundary_condition(
                     bc, cache=os.path.join(cache, f"boundary_condition_f_{i}.py")
-                ) for i, bc in enumerate(terminal_value)
+                )
+                for i, bc in enumerate(terminal_value)
             ]
             self.info_t_0 = self._parse_boundary_condition(
                 initial_time, cache=os.path.join(cache, "boundary_condition_t_0.py")

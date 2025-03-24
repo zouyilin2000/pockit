@@ -194,7 +194,9 @@ class SystemBase(ABC):
         self._phase_set = True
         return self
 
-    def set_objective(self, objective: float | sp.Expr, *, cache: Optional[str]=None) -> Self:
+    def set_objective(
+        self, objective: float | sp.Expr, *, cache: Optional[str] = None
+    ) -> Self:
         """Set the objective of the system.
 
         Args:
@@ -219,7 +221,7 @@ class SystemBase(ABC):
         lower_bound: Iterable[float],
         upper_bound: Iterable[float],
         *,
-        cache: Optional[str]=None,
+        cache: Optional[str] = None,
     ) -> Self:
         """Set the system constraints of the system.
 
@@ -343,8 +345,14 @@ class SystemBase(ABC):
             ]
         else:
             self._func_system_constraint = [
-                FastFunc(sc, self._symbols, *self._compile_parameters,
-                         cache=os.path.join(self._cache_system_constraint, f"system_constraint_{i}.py"))
+                FastFunc(
+                    sc,
+                    self._symbols,
+                    *self._compile_parameters,
+                    cache=os.path.join(
+                        self._cache_system_constraint, f"system_constraint_{i}.py"
+                    ),
+                )
                 for i, sc in enumerate(self._expr_system_constraint)
             ]
         self._num_system_constraint = len(self._expr_system_constraint)
