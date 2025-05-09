@@ -193,16 +193,7 @@ def I_lgr(num_point: int) -> VecFloat:
         Integration matrix of the Legendre-Gauss-Radau nodes.
     """
     x, _ = xw_lgr(num_point)
-    x_1 = np.concatenate((x, [1]), dtype=np.float64)
-    I = []
-    for i in range(num_point):
-        y = np.zeros_like(x)
-        y[i] = 1
-        poly = scipy.interpolate.lagrange(x, y)
-        poly_int = np.polyint(poly)
-        val = np.polyval(poly_int, x_1)
-        I.append(val[:-1] - val[-1])
-    return np.array(I, dtype=float).T
+    return integral_matrix(x, x)
 
 
 def T_v(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:

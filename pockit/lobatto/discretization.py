@@ -163,15 +163,7 @@ def I_lgl(num_point: int) -> VecFloat:
         Integration matrix of the Legendre-Gauss-Lobatto nodes.
     """
     x, _ = xw_lgl(num_point)
-    I = []
-    for i in range(num_point):
-        y = np.zeros(num_point)
-        y[i] = 1
-        poly = scipy.interpolate.lagrange(x, y)
-        poly_int = np.polyint(poly)
-        poly_int_val = np.polyval(poly_int, x)
-        I.append(poly_int_val[:-1] - poly_int_val[-1])
-    return np.array(I, dtype=np.float64).T
+    return integral_matrix(x, x[:-1])
 
 
 def T_v(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:

@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Callable, Optional
 import scipy.sparse
+import numba as nb
 
 from .vectypes import *
 
@@ -35,6 +36,148 @@ def lr_nc(num_point: VecInt) -> tuple[VecInt, VecInt]:
         Left and right index ``l_nc, r_nc`` for separate border variables.
     """
     return np.concatenate(([0], np.cumsum(num_point[:-1]))), np.cumsum(num_point)
+
+
+@nb.njit
+def _evaluate_all_L_j_at_xk(
+    eval_points: VecFloat, nodes_interp: VecFloat, weights_bary: VecFloat
+) -> VecFloat:
+    """Calculate all barycentric interpolation basis functions L_j values at given evaluation points.
+
+    Args:
+        eval_points: A one-dimensional array where L_j values need to be calculated.
+        nodes_interp: Interpolation nodes x_i.
+        weights_bary: Barycentric weights w_i corresponding to nodes_interp.
+
+    Returns:
+        A matrix with shape (len(eval_points), len(nodes_interp)),
+        where L_values[k, j] = L_j(eval_points[k]).
+    """
+    num_eval = len(eval_points)
+    num_nodes = len(nodes_interp)
+    L_values = np.zeros((num_eval, num_nodes), dtype=np.float64)
+
+    if num_nodes == 0 or num_eval == 0:
+        return L_values
+    if num_nodes == 1:  # Single interpolation node, L_0(x) = 1
+        L_values[:, 0] = 1.0
+        return L_values
+
+    # Vectorized calculation for (eval_points[k] - nodes_interp[s])
+    # diff_matrix[k, s] = eval_points[k] - nodes_interp[s]
+    diff_matrix = eval_points[:, np.newaxis] - nodes_interp[np.newaxis, :]
+
+    # Use the barycentric formula L_j(x) = (w_j / (x-x_j)) / sum_s (w_s / (x-x_s))
+    # term_matrix[k,s] = weights_bary[s] / diff_matrix[k,s]
+    # (Note: If eval_points[k] == nodes_interp[s], diff_matrix[k,s] is 0)
+    # with np.errstate(divide='ignore', invalid='ignore'): # Ignore divide-by-zero/invalid value warnings that will be corrected later
+    term_matrix = weights_bary[np.newaxis, :] / diff_matrix
+    denominator_sum = np.sum(
+        term_matrix, axis=1
+    )  # denominator_sum[k] = sum_s (w_s / (eval_k - node_s))
+
+    # L_values_kj[k, j] = term_matrix[k,j] / denominator_sum[k]
+    L_values = term_matrix / denominator_sum[:, np.newaxis]
+
+    # Handle cases where the denominator is zero or invalid (e.g., x is far from all nodes, or x is a node causing inf/inf -> nan)
+    # If the patching loop is correct, this special handling may not be needed, but as a defensive measure
+    L_values[np.isclose(denominator_sum, 0.0) | ~np.isfinite(denominator_sum), :] = (
+        0.0  # Or other appropriate fill value
+    )
+
+    # Key correction: If evaluation point xk coincides with an interpolation node nodes_interp[s]
+    for k_eval, xk in enumerate(eval_points):
+        for s_node, node_val in enumerate(nodes_interp):
+            if np.isclose(xk, node_val, rtol=1e-13, atol=1e-13):
+                L_values[k_eval, :] = 0.0
+                L_values[k_eval, s_node] = 1.0
+                break  # Found matching node, this row of L_values has been corrected
+    return L_values
+
+
+def integral_matrix(nodes_in: VecFloat, nodes_out: VecFloat) -> VecFloat:
+    """Compute the integral matrix using barycentric weights for improved numerical stability.
+
+    The integration is performed from 1 to x_out, so the integral at x = 1 is zero.
+
+    Args:
+        nodes_in: Distinct nodes where function values are known.
+        nodes_out: Nodes where integral values are needed.
+
+    Returns:
+        A matrix I such that I @ f = ∫f(t)dt (integrated from 1 to x_out).
+
+    Raises:
+        ValueError: If nodes_in contains non-distinct nodes.
+    """
+    nodes_in = np.asarray(nodes_in, dtype=np.float64)
+    nodes_out = np.asarray(nodes_out, dtype=np.float64)
+    n = len(nodes_in)
+    m = len(nodes_out)
+
+    if n == 0:
+        return np.zeros((m, 0), dtype=np.float64)
+    if m == 0:
+        return np.zeros((0, n), dtype=np.float64)
+
+    # Check if nodes in nodes_in are distinct
+    if n > 1:
+        for i_node in range(n):
+            for j_node in range(i_node + 1, n):
+                if np.isclose(
+                    nodes_in[i_node], nodes_in[j_node], rtol=1e-13, atol=1e-13
+                ):
+                    raise ValueError("nodes_in must contain distinct nodes")
+
+    # Initialize integral matrix
+    I = np.zeros((m, n), dtype=np.float64)
+
+    # Calculate barycentric weights for nodes_in
+    w = np.ones(n, dtype=np.float64)
+    if n > 1:  # If n=1, w[0] remains 1 (empty product is 1)
+        for j in range(n):
+            for k in range(n):
+                if k != j:
+                    # Since nodes are checked to be distinct, nodes_in[j] - nodes_in[k] won't be zero
+                    w[j] /= nodes_in[j] - nodes_in[k]
+
+    # Set the number of Gaussian quadrature points
+    quad_n_points = max(30, 3 * n)
+    quad_x_ref, quad_w_ref = np.polynomial.legendre.leggauss(
+        quad_n_points
+    )  # On [-1, 1]
+
+    # --- Main loop: Calculate ∫ L_j(t) dt (from 1 to x_out) for each output node ---
+    for i_row in range(m):
+        x_target = nodes_out[i_row]
+
+        # If x_target equals 1.0, the integral value is 0
+        if np.isclose(x_target, 1.0, rtol=1e-13, atol=1e-13):
+            I[i_row, :] = 0.0
+            continue
+
+        # Define the integration interval [a, b]
+        a = 1.0
+        b = x_target
+
+        # Map quadrature nodes from the reference interval [-1, 1] to [a, b]
+        # t = alpha * y + beta; y from quad_x_ref (in [-1,1]), t is mapped_x_quad (in [a,b])
+        alpha = 0.5 * (b - a)  # Jacobian of transformation / scaling factor
+        beta = 0.5 * (b + a)  # Midpoint / translation factor
+
+        mapped_x_quad = alpha * quad_x_ref + beta
+        mapped_w_quad = alpha * quad_w_ref
+
+        # Calculate values of all Lagrange basis functions L_j at the mapped quadrature points
+        lagrange_values_at_mapped_x = _evaluate_all_L_j_at_xk(
+            mapped_x_quad, nodes_in, w
+        )
+        # Shape of lagrange_values_at_mapped_x is (quad_n_points, n)
+
+        # Calculate integral ∫ L_j(t) dt (from a=1 to b=x_target), resulting in one row of matrix I
+        I[i_row, :] = np.dot(mapped_w_quad, lagrange_values_at_mapped_x)
+
+    return I
 
 
 class CooMatrix:
