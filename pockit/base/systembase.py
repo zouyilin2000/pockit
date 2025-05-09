@@ -7,7 +7,7 @@ import sympy as sp
 
 from .autoupdate import AutoUpdate
 from .easyderiv import *
-from .fastfunc import FastFunc
+from .fastfunc import FastFunc, ensure_directory
 from .phasebase import PhaseBase, BcType
 from .vectypes import *
 from .variablebase import VariableBase
@@ -204,12 +204,21 @@ class SystemBase(ABC):
             cache: Path to the directory to store the compiled functions.
         """
         self._expr_objective = sp.sympify(objective)
-        self._func_objective = FastFunc(
-            self._expr_objective,
-            self._symbols,
-            *self._compile_parameters,
-            cache=None if cache is None else os.path.join(cache, "objective.py"),
-        )
+        if cache is None:
+            self._func_objective = FastFunc(
+                self._expr_objective,
+                self._symbols,
+                *self._compile_parameters,
+                cache=None
+            )
+        else:
+            ensure_directory(cache)
+            self._func_objective = FastFunc(
+                self._expr_objective,
+                self._symbols,
+                *self._compile_parameters,
+                cache=os.path.join(cache, "objective.py"),
+            )
 
         self._auto_update.update(1)
         self._objective_set = True
@@ -344,6 +353,7 @@ class SystemBase(ABC):
                 for sc in self._expr_system_constraint
             ]
         else:
+            ensure_directory(self._cache_system_constraint)
             self._func_system_constraint = [
                 FastFunc(
                     sc,

@@ -5,6 +5,7 @@ import tempfile
 import importlib.util
 import sys
 from typing import Callable, Optional
+from pathlib import Path
 
 import numpy as np
 import sympy as sp
@@ -15,7 +16,9 @@ from .vectypes import *
 
 
 @functools.lru_cache
-def _deco_basic(num_free_symbol: int, parallel: bool, fastmath: bool, cache: bool) -> str:
+def _deco_basic(
+    num_free_symbol: int, parallel: bool, fastmath: bool, cache: bool
+) -> str:
     """Decorator for basic functions."""
     tail = ""
     # do not compile if set (TODO: why?)
@@ -70,16 +73,16 @@ def _fnv1a_hash(text: str) -> int:
     # FNV-1a hash parameters
     FNV_PRIME = 0x01000193
     FNV_OFFSET_BASIS = 0x811C9DC5
-    
+
     # Convert string to bytes using UTF-8 encoding
-    byte_array = text.encode('utf-8')
-    
+    byte_array = text.encode("utf-8")
+
     # Compute hash
     hash_value = FNV_OFFSET_BASIS
     for byte in byte_array:
         hash_value ^= byte
         hash_value = (hash_value * FNV_PRIME) & 0xFFFFFFFF
-        
+
     return hash_value
 
 
@@ -164,7 +167,9 @@ class FastFunc:
             self._function = self._function.subs(args[i], self._valid_args[i])
         self._args = self._valid_args
 
-        self._hash = "# hash {}\n".format(_fnv1a_hash(str(self._function) + str(len(self._args))))
+        self._hash = "# hash {}\n".format(
+            _fnv1a_hash(str(self._function) + str(len(self._args)))
+        )
 
         if cache is not None and os.path.isfile(cache):
             with open(cache, "r") as file:
@@ -222,9 +227,21 @@ class FastFunc:
         file.write("import numba\n\n")
         file.write(code)
         if cache is not None:
-            file.write("G_index = array([{}], dtype=int32)\n".format(", ".join(map(str, self.G_index))))
-            file.write("H_index_row = array([{}], dtype=int32)\n".format(", ".join(map(str, self.H_index_row))))
-            file.write("H_index_col = array([{}], dtype=int32)\n".format(", ".join(map(str, self.H_index_col))))
+            file.write(
+                "G_index = array([{}], dtype=int32)\n".format(
+                    ", ".join(map(str, self.G_index))
+                )
+            )
+            file.write(
+                "H_index_row = array([{}], dtype=int32)\n".format(
+                    ", ".join(map(str, self.H_index_row))
+                )
+            )
+            file.write(
+                "H_index_col = array([{}], dtype=int32)\n".format(
+                    ", ".join(map(str, self.H_index_col))
+                )
+            )
         file.close()
 
         module = _load_module(path)
@@ -252,7 +269,12 @@ class FastFunc:
 
         free_symbols_value = self._free_symbols(func)
         self._value_index = free_symbols_value
-        deco_str = _deco_basic(len(free_symbols_value), self._parallel, self._fastmath, self._cache is not None)
+        deco_str = _deco_basic(
+            len(free_symbols_value),
+            self._parallel,
+            self._fastmath,
+            self._cache is not None,
+        )
         func_str = lambdarepr(self.__expand_opt(func)).replace("math.", "")
         param_str = ", ".join([self._args[i].name for i in free_symbols_value])
         result_str += (
@@ -278,7 +300,10 @@ class FastFunc:
             free_symbols_grad = self._free_symbols(grad)
             self._grad_index.append((j, free_symbols_grad))
             deco_str = _deco_basic(
-                len(free_symbols_grad), self._parallel, self._fastmath, self._cache is not None
+                len(free_symbols_grad),
+                self._parallel,
+                self._fastmath,
+                self._cache is not None,
             )
             grad_str = lambdarepr(self.__expand_opt(grad)).replace("math.", "")
             param_str = ", ".join([self._args[k].name for k in free_symbols_grad])
@@ -307,7 +332,10 @@ class FastFunc:
                 free_symbols_hess = self._free_symbols(hess)
                 self._hess_index.append((j, k, free_symbols_hess))
                 deco_str = _deco_basic(
-                    len(free_symbols_hess), self._parallel, self._fastmath, self._cache is not None
+                    len(free_symbols_hess),
+                    self._parallel,
+                    self._fastmath,
+                    self._cache is not None,
                 )
                 hess_str = lambdarepr(self.__expand_opt(hess)).replace("math.", "")
                 param_str = ", ".join([self._args[l].name for l in free_symbols_hess])
@@ -370,3 +398,22 @@ class FastFunc:
         return np.array([x for x, _, _ in self._hess_index], dtype=np.int32), np.array(
             [y for _, y, _ in self._hess_index], dtype=np.int32
         )
+
+
+def ensure_directory(path: str | Path):
+    """
+    Ensure that the path exists and is a directory.
+
+    Args:
+        path: The path to check/create (can be a string or a Path object).
+    """
+    path = Path(path) if not isinstance(path, Path) else path
+
+    # If the path exists
+    if path.exists():
+        # Check if it is a directory
+        if not path.is_dir():
+            raise NotADirectoryError(f"Path {path} exists but is not a directory")
+    else:
+        # Create the directory (including all necessary parent directories)
+        path.mkdir(parents=True, exist_ok=True)

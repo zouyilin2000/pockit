@@ -10,7 +10,7 @@ import sympy as sp
 
 from .autoupdate import AutoUpdate
 from .easyderiv import *
-from .fastfunc import FastFunc
+from .fastfunc import FastFunc, ensure_directory
 from .vectypes import *
 from .discretizationbase import *
 
@@ -264,6 +264,7 @@ class PhaseBase(ABC):
         if cache is None:
             cache_dynamic = it.repeat(None)
         else:
+            ensure_directory(cache)
             cache_dynamic = (
                 os.path.join(cache, f"dynamic_{i}.py") for i in range(self.n_x)
             )
@@ -294,6 +295,7 @@ class PhaseBase(ABC):
         if cache is None:
             cache_integral = it.repeat(None)
         else:
+            ensure_directory(cache)
             cache_integral = (
                 os.path.join(cache, f"integral_{i}.py") for i in range(self.n_I)
             )
@@ -375,6 +377,7 @@ class PhaseBase(ABC):
         if cache is None:
             cache_phase_constraint = it.repeat(None)
         else:
+            ensure_directory(cache)
             cache_phase_constraint = (
                 os.path.join(cache, f"phase_constraint_{i}.py") for i in range(self.n_c)
             )
@@ -491,6 +494,7 @@ class PhaseBase(ABC):
             self.info_t_0 = self._parse_boundary_condition(initial_time, cache=None)
             self.info_t_f = self._parse_boundary_condition(terminal_time, cache=None)
         else:
+            ensure_directory(cache)
             self.info_bc_0 = [
                 self._parse_boundary_condition(
                     bc, cache=os.path.join(cache, f"boundary_condition_0_{i}.py")
