@@ -28,6 +28,24 @@ To support the project's development financially, you can make a contribution vi
 
 如果有帮助，请帮忙点下 Star，谢谢 🙏。如果你很有钱，可以考虑赞助项目 😂。
 
+## Citation
+
+If you use pockit in your research, please cite the following work:
+
+```bibtex
+@misc{zou2025vectorizedsparsesecondorderforward,
+    title={Vectorized Sparse Second-Order Forward Automatic Differentiation for Optimal Control Direct Methods}, 
+    author={Yilin Zou and Fanghua Jiang},
+    year={2025},
+    eprint={2506.11537},
+    archivePrefix={arXiv},
+    primaryClass={eess.SY},
+    url={https://arxiv.org/abs/2506.11537}, 
+}
+```
+
+We sincerely appreciate your support.
+
 ## LQR in 1 Minute
 ```python
 from pockit.lobatto import System, constant_guess
