@@ -8,10 +8,9 @@ class System(SystemBase):
         self,
         static_parameter: int | list[str],
         simplify: bool = False,
-        parallel: bool = False,
         fastmath: bool = False,
     ) -> None:
-        super().__init__(static_parameter, simplify, parallel, fastmath)
+        super().__init__(static_parameter, simplify, fastmath)
 
     @property
     def _class_phase(self) -> type[PhaseBase]:

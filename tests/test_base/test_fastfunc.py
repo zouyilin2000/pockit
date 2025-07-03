@@ -72,4 +72,3 @@ def test_configs():
     x, y, z = sp.symbols("x, y, z")
     FastFunc(x + y**2, [x, y, z], fastmath=True)
     FastFunc(x + y**2, [x, y, z], simplify=True)
-    FastFunc(x + y**2, [x, y, z], parallel=True)
