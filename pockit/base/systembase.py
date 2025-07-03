@@ -55,7 +55,6 @@ class SystemBase(ABC):
         self,
         static_parameter: int | list[str],
         simplify: bool = False,
-        parallel: bool = False,
         fastmath: bool = False,
     ) -> None:
         r"""Initialize a system with given static parameters.
@@ -65,10 +64,6 @@ class SystemBase(ABC):
         If ``simplify`` is ``True``, every symbolic expression will be simplified (by :func:`sympy.simplify`) before
         being compiled. This will slow down the speed of compilation.
 
-        If ``parallel`` is ``True``, the ``parallel`` flag will be passed to the Numba JIT compiler,
-        which will generate parallel code for multicore CPUs.
-        This will slow down the speed of compilation and sometimes the speed of execution.
-
         If ``fastmath`` is ``True``, the ``fastmath`` flag will be passed to the Numba JIT compiler,
         see [Numba](https://numba.pydata.org/numba-doc/latest/user/performance-tips.html#fastmath)
         and [LLVM](https://llvm.org/docs/LangRef.html#fast-math-flags) documentations for details.
@@ -76,7 +71,6 @@ class SystemBase(ABC):
         Args:
             static_parameter: Number of static parameters or list of static parameter names.
             simplify: Whether to use Sympy to simplify :class:`sympy.Expr` before compilation.
-            parallel: Whether to use Numba ``parallel`` mode.
             fastmath: Whether to use Numba ``fastmath`` mode.
         """
         if isinstance(static_parameter, int):
@@ -96,9 +90,8 @@ class SystemBase(ABC):
         self._identifier_phase = 0
 
         self._simplify = simplify
-        self._parallel = parallel
         self._fastmath = fastmath
-        self._compile_parameters = simplify, parallel, fastmath
+        self._compile_parameters = simplify, fastmath
 
         # phase: 0
         # objective: 1

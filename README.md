@@ -44,13 +44,13 @@ If you use pockit in your research, please cite the following works:
 }
 
 @misc{zou2025reexamininglegendregausslobattopseudospectralmethods,
-      title={Re-examining the Legendre-Gauss-Lobatto Pseudospectral Methods for Optimal Control}, 
-      author={Yilin Zou and Fanghua Jiang},
-      year={2025},
-      eprint={2507.01660},
-      archivePrefix={arXiv},
-      primaryClass={eess.SY},
-      url={https://arxiv.org/abs/2507.01660}, 
+    title={Re-examining the Legendre-Gauss-Lobatto Pseudospectral Methods for Optimal Control}, 
+    author={Yilin Zou and Fanghua Jiang},
+    year={2025},
+    eprint={2507.01660},
+    archivePrefix={arXiv},
+    primaryClass={eess.SY},
+    url={https://arxiv.org/abs/2507.01660}, 
 }
 ```
 

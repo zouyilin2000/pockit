@@ -16,29 +16,9 @@ from .vectypes import *
 
 
 @functools.lru_cache
-def _deco_basic(
-    num_free_symbol: int, parallel: bool, fastmath: bool, cache: bool
-) -> str:
-    """Decorator for basic functions."""
-    tail = ""
-    # do not compile if set (TODO: why?)
-    # if parallel:
-    #     tail += ', target="parallel"'
-    if fastmath:
-        tail += ", fastmath=True"
-    if cache:
-        tail += ", cache=True"
-    return '@numba.vectorize("float64({})"{})\n'.format(
-        ", ".join(["float64"] * num_free_symbol), tail
-    )
-
-
-@functools.lru_cache
-def _deco_F(parallel: bool, fastmath: bool, cache: bool) -> str:
+def _deco_F(fastmath: bool, cache: bool) -> str:
     """Decorator for the aggregate function F (value)."""
     tail = ""
-    if parallel:
-        tail += ", parallel=True"
     if fastmath:
         tail += ", fastmath=True"
     if cache:
@@ -47,16 +27,19 @@ def _deco_F(parallel: bool, fastmath: bool, cache: bool) -> str:
 
 
 @functools.lru_cache
-def _deco_GH(parallel: bool, fastmath: bool, cache: bool) -> str:
+def _deco_GH(fastmath: bool, cache: bool) -> str:
     """Decorator for the aggregate functions G (gradient) and H (hessian)."""
     tail = ""
-    if parallel:
-        tail += ", parallel=True"
     if fastmath:
         tail += ", fastmath=True"
     if cache:
         tail += ", cache=True"
     return '@numba.njit("float64[:, :](float64[:], int32)"{})\n'.format(tail)
+
+
+def _code_basic(expr: sp.Expr, opt) -> str:
+    """Generate code for a basic function."""
+    return lambdarepr(opt(expr)).replace("math.", "")
 
 
 def _load_module(path: str):
@@ -115,7 +98,6 @@ class FastFunc:
         function: int | float | sp.Expr,
         args: list[sp.Symbol],
         simplify: bool = False,
-        parallel: bool = False,
         fastmath: bool = False,
         *,
         cache: Optional[str] = None,
@@ -133,10 +115,6 @@ class FastFunc:
         If ``simplify`` is ``True``, every symbolic expression will be simplified (by :func:`sympy.simplify`) before
         being compiled. This will slow down the compilation speed.
 
-        If ``parallel`` is ``True``, the ``parallel`` flag will be passed to the Numba JIT compiler,
-        which will generate parallel code for multicore CPUs.
-        This will slow down both compilation and sometimes execution speed.
-
         If ``fastmath`` is ``True``, the ``fastmath`` flag will be passed to the Numba JIT compiler.
         See [Numba](https://numba.pydata.org/numba-doc/latest/user/performance-tips.html#fastmath)
         and [LLVM](https://llvm.org/docs/LangRef.html#fast-math-flags) documentation for details.
@@ -152,7 +130,6 @@ class FastFunc:
             function: :class:`Sympy.Expr` of the function.
             args: :class:`sympy.Symbol` s of the function arguments.
             simplify: Whether to use :func:`Sympy.simplify` to simplify expressions before compilation.
-            parallel: Whether to use Numba ``parallel`` mode.
             fastmath: Whether to use Numba ``fastmath`` mode.
             cache: Path to a file to cache the generated functions.
         """
@@ -161,7 +138,7 @@ class FastFunc:
 
         # random valid Python name to avoid conflict
         self._valid_args = [
-            sp.Symbol("xbN4dRhrnN_{}".format(i)) for i in range(len(args))
+            sp.Symbol("xbN4dRhrnN{}".format(i)) for i in range(len(args))
         ]
         for i in range(len(args)):
             self._function = self._function.subs(args[i], self._valid_args[i])
@@ -185,26 +162,23 @@ class FastFunc:
                     return
 
         self._simplify = simplify
-        self._parallel = parallel
         self._fastmath = fastmath
         self._cache = cache
 
-        self._value_index = []
-        self._grad_index = []
-        self._hess_index = []
+        self._expr_value = 0
+        self._expr_grad = []
+        self._index_grad = []
+        self._expr_hess = []
+        self._index_hess = []
 
-        self._value_consts = None
-        self._grad_consts = {}
-        self._hess_consts = {}
+        self._gen_basic_funcs()
 
         self.__expand_opt = create_expand_pow_optimization(3)
 
-        basic_str = self._gen_basic_funcs()
-        aggregate_str = self._gen_aggregate_funcs()
-
+        code = self._gen_aggregate_funcs()
         self.G_index = self._gen_G_index()
         self.H_index_row, self.H_index_col = self._gen_H_index()
-        self._compile(basic_str + aggregate_str, cache)
+        self._compile(code, cache)
 
     def _load(self, cache: str) -> None:
         module = _load_module(cache)
@@ -256,34 +230,15 @@ class FastFunc:
     def _free_symbols(self, expr: sp.Expr) -> list[int]:
         return sorted([self._args.index(sym) for sym in expr.free_symbols])
 
-    def _gen_basic_funcs(self) -> str:
-        result_str = ""
+    def _gen_basic_funcs(self):
         func = self._function
 
         # value
         if self._simplify:
             func = sp.simplify(func)
-        if func.is_constant(simplify=self._simplify):
-            self._value_consts = float(func)
-            return ""
+        self._expr_value = func
 
         free_symbols_value = self._free_symbols(func)
-        self._value_index = free_symbols_value
-        deco_str = _deco_basic(
-            len(free_symbols_value),
-            self._parallel,
-            self._fastmath,
-            self._cache is not None,
-        )
-        func_str = lambdarepr(self.__expand_opt(func)).replace("math.", "")
-        param_str = ", ".join([self._args[i].name for i in free_symbols_value])
-        result_str += (
-            deco_str
-            + "def f({}):\n".format(param_str)
-            + "    return "
-            + func_str
-            + "\n\n"
-        )
 
         for j in free_symbols_value:  # row of hessian
             # gradient
@@ -292,31 +247,13 @@ class FastFunc:
                 grad = sp.simplify(grad)
             if grad == 0:
                 continue
-            if grad.is_constant(simplify=self._simplify):
-                self._grad_consts[j] = float(grad)
-                self._grad_index.append((j, []))
-                continue
+            self._expr_grad.append(grad)
+            self._index_grad.append(j)
 
             free_symbols_grad = self._free_symbols(grad)
-            self._grad_index.append((j, free_symbols_grad))
-            deco_str = _deco_basic(
-                len(free_symbols_grad),
-                self._parallel,
-                self._fastmath,
-                self._cache is not None,
-            )
-            grad_str = lambdarepr(self.__expand_opt(grad)).replace("math.", "")
-            param_str = ", ".join([self._args[k].name for k in free_symbols_grad])
-            result_str += (
-                deco_str
-                + "def df_d{}({}):\n".format(j, param_str)
-                + "    return "
-                + grad_str
-                + "\n\n"
-            )
 
             # hessian
-            for k in free_symbols_value:  # col of hessian
+            for k in free_symbols_grad:  # col of hessian
                 if j < k:
                     break
                 hess = sp.diff(grad, self._args[k])
@@ -324,79 +261,55 @@ class FastFunc:
                     hess = sp.simplify(hess)
                 if hess == 0:
                     continue
-                if hess.is_constant(simplify=self._simplify):
-                    self._hess_consts[(j, k)] = float(hess)
-                    self._hess_index.append((j, k, []))
-                    continue
+                self._expr_hess.append(hess)
+                self._index_hess.append((j, k))
 
-                free_symbols_hess = self._free_symbols(hess)
-                self._hess_index.append((j, k, free_symbols_hess))
-                deco_str = _deco_basic(
-                    len(free_symbols_hess),
-                    self._parallel,
-                    self._fastmath,
-                    self._cache is not None,
-                )
-                hess_str = lambdarepr(self.__expand_opt(hess)).replace("math.", "")
-                param_str = ", ".join([self._args[l].name for l in free_symbols_hess])
-                result_str += (
-                    deco_str
-                    + "def d2f_d{}d{}({}):\n".format(j, k, param_str)
-                    + "    return "
-                    + hess_str
-                    + "\n\n"
-                )
-        return result_str
+    def _gen_code_F(self, expr) -> str:
+        deco = _deco_F(self._fastmath, self._cache is not None)
+        head = "def F(x, n):\n"
+        body = "    r = empty(n, dtype=float64)\n"
+        common_expr = sp.cse(
+            expr, optimizations="basic", symbols=sp.numbered_symbols("ce")
+        )
+        for cse_symbol, cse_expr in common_expr[0]:
+            body += f"    {cse_symbol} = {_code_basic(cse_expr, self.__expand_opt)}\n"
+        body += f"    r[:] = {_code_basic(common_expr[1][0], self.__expand_opt)}\n"
+        body += "    return r\n\n"
+        return deco + head + body
+
+    def _gen_code_GH(self, name, exprs) -> str:
+        deco = _deco_GH(self._fastmath, self._cache is not None)
+        head = f"def {name}(x, n):\n"
+        body = f"    r = empty(({len(exprs)}, n), dtype=float64)\n"
+        expr_common = sp.cse(
+            exprs, optimizations="basic", symbols=sp.numbered_symbols("ce")
+        )
+        for cse_symbol, cse_expr in expr_common[0]:
+            body += f"    {cse_symbol} = {_code_basic(cse_expr, self.__expand_opt)}\n"
+        for row, expr in enumerate(expr_common[1]):
+            body += f"    r[{row}] = {_code_basic(expr, self.__expand_opt)}\n"
+        body += "    return r\n\n"
+        return deco + head + body
 
     def _gen_aggregate_funcs(self) -> str:
-        result_str = ""
-        # value
-        result_str += _deco_F(self._parallel, self._fastmath, self._cache is not None)
-        result_str += "def F(x, n):\n"
-        result_str += "    r = zeros(n, dtype=float64)\n"
-        if self._value_consts is not None:
-            result_str += f"    r[:] = {self._value_consts}\n"
-        else:
-            param_str = ", ".join(
-                [f"x[{j} * n:{j + 1} * n]" for j in self._value_index]
-            )
-            result_str += "    r = f({})\n".format(param_str)
-        result_str += "    return r\n\n"
+        code = (
+            self._gen_code_F(self._expr_value)
+            + self._gen_code_GH("G", self._expr_grad)
+            + self._gen_code_GH("H", self._expr_hess)
+        )
 
-        # gradient
-        result_str += _deco_GH(self._parallel, self._fastmath, self._cache is not None)
-        result_str += "def G(x, n):\n"
-        result_str += f"    r = zeros(({len(self._grad_index)}, n), dtype=float64)\n"
-        for row, (x, fs) in enumerate(self._grad_index):  # fs for free symbols
-            if x in self._grad_consts:
-                result_str += f"    r[{row}] = {self._grad_consts[x]}\n"
-            else:
-                param_str = ", ".join([f"x[{j} * n:{j + 1} * n]" for j in fs])
-                result_str += "    r[{}] = df_d{}({})\n".format(row, x, param_str)
-        result_str += "    return r\n\n"
+        for i in range(len(self._args) - 1, -1, -1):
+            code = code.replace(f"xbN4dRhrnN{i}", f"x[{i}*n:{i + 1}*n]")
 
-        # hessian
-        result_str += _deco_GH(self._parallel, self._fastmath, self._cache is not None)
-        result_str += "def H(x, n):\n"
-        result_str += f"    r = zeros(({len(self._hess_index)}, n), dtype=float64)\n"
-        for row, (x, y, fs) in enumerate(self._hess_index):
-            if (x, y) in self._hess_consts:
-                result_str += f"    r[{row}] = {self._hess_consts[(x, y)]}\n"
-            else:
-                param_str = ", ".join([f"x[{j} * n:{j + 1} * n]" for j in fs])
-                result_str += "    r[{}] = d2f_d{}d{}({})\n".format(
-                    row, x, y, param_str
-                )
-        result_str += "    return r\n\n"
-
-        return result_str
+        return code
 
     def _gen_G_index(self) -> VecInt:
-        return np.array([x for x, _ in self._grad_index], dtype=np.int32)
+        return np.array(self._index_grad, dtype=np.int32)
 
     def _gen_H_index(self) -> tuple[VecInt, VecInt]:
-        return np.array([x for x, _, _ in self._hess_index], dtype=np.int32), np.array(
-            [y for _, y, _ in self._hess_index], dtype=np.int32
+        return (
+            np.array([x for x, _ in self._index_hess], dtype=np.int32),
+            np.array([y for _, y in self._index_hess], dtype=np.int32),
         )
 
 

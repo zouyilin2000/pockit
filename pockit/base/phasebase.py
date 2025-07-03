@@ -47,7 +47,6 @@ class PhaseBase(ABC):
         control: int | list[str],
         symbol_static_parameter: list[sp.Symbol],
         simplify: bool = False,
-        parallel: bool = False,
         fastmath: bool = False,
     ) -> None:
         r"""Initialize a phase with given state, control, and static variables.
@@ -66,10 +65,6 @@ class PhaseBase(ABC):
         If ``simplify`` is ``True``, every symbolic expression will be simplified (by :func:`sympy.simplify`) before
         being compiled. This will slow down the speed of compilation.
 
-        If ``parallel`` is ``True``, the ``parallel`` flag will be passed to the Numba JIT compiler,
-        which will generate parallel code for multicore CPUs.
-        This will slow down the speed of compilation and sometimes the speed of execution.
-
         If ``fastmath`` is ``True``, the ``fastmath`` flag will be passed to the Numba JIT compiler,
         see [Numba](https://numba.pydata.org/numba-doc/latest/user/performance-tips.html#fastmath)
         and [LLVM](https://llvm.org/docs/LangRef.html#fast-math-flags) documentations for details.
@@ -81,7 +76,6 @@ class PhaseBase(ABC):
                 should be identical to those in the ``System`` object.
             identifier: Unique identifier of the phase.
             simplify: Whether to use Sympy to simplify :class:`sympy.Expr` before compilation.
-            parallel: Whether to use Numba ``parallel`` mode.
             fastmath: Whether to use Numba ``fastmath`` mode.
         """
         self._identifier = identifier
@@ -201,9 +195,8 @@ class PhaseBase(ABC):
         self._node_time_delta.g = np.array([[-1.0], [1.0]], dtype=np.float64)
 
         self._simplify = simplify
-        self._parallel = parallel
         self._fastmath = fastmath
-        self._compile_parameters = simplify, parallel, fastmath
+        self._compile_parameters = simplify, fastmath
 
         # dynamics: 0
         # integral: 1

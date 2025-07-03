@@ -14,7 +14,6 @@ class Phase(PhaseBase):
         control: int | list[str],
         symbol_static_parameter: list[sp.Symbol],
         simplify: bool = False,
-        parallel: bool = False,
         fastmath: bool = False,
     ) -> None:
         super().__init__(
@@ -23,7 +22,6 @@ class Phase(PhaseBase):
             control,
             symbol_static_parameter,
             simplify,
-            parallel,
             fastmath,
         )
 
