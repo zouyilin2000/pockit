@@ -30,7 +30,7 @@ To support the project's development financially, you can make a contribution vi
 
 ## Citation
 
-If you use pockit in your research, please cite the following work:
+If you use pockit in your research, please cite the following works:
 
 ```bibtex
 @misc{zou2025vectorizedsparsesecondorderforward,
@@ -41,6 +41,16 @@ If you use pockit in your research, please cite the following work:
     archivePrefix={arXiv},
     primaryClass={eess.SY},
     url={https://arxiv.org/abs/2506.11537}, 
+}
+
+@misc{zou2025reexamininglegendregausslobattopseudospectralmethods,
+      title={Re-examining the Legendre-Gauss-Lobatto Pseudospectral Methods for Optimal Control}, 
+      author={Yilin Zou and Fanghua Jiang},
+      year={2025},
+      eprint={2507.01660},
+      archivePrefix={arXiv},
+      primaryClass={eess.SY},
+      url={https://arxiv.org/abs/2507.01660}, 
 }
 ```
 
