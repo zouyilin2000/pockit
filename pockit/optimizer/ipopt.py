@@ -13,7 +13,7 @@ def solve(
     guess: VariableBase | list[VariableBase | Iterable[float]],
     optimizer_options: Optional[dict] = None,
 ) -> tuple[VariableBase | list[VariableBase | Iterable[float]], Any]:
-    """Solve the system using [IPOPT](https://github.com/coin-or/Ipopt).
+    """Solve the system using [Ipopt](https://github.com/coin-or/Ipopt).
 
     If the system has only one phase and no static variables, ``guess`` can
     be a single ``Variable`` object. Otherwise, ``guess`` should be a list of
@@ -22,17 +22,17 @@ def solve(
 
     Optimizer options should be a dictionary of options to pass to Ipopt.
     See [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html) for available options.
-    Options will be passed verbatimly.
+    Options are passed through unchanged.
 
     Args:
         system: ``System`` to solve.
         guess: Guess to the solution.
-        optimizer_options: Options to pass to IPOPT.
+        optimizer_options: Options to pass to Ipopt.
 
     Returns:
-        The value returned by IPOPT parsed as the same format as ``guess``
-        (a single ``Variable`` object or a list of ``Variable`` objects and a array for static values),
-        and the raw output returned by IPOPT.
+        The Ipopt solution converted to the same structure as ``guess``
+        (a single ``Variable`` object or a list containing ``Variable`` objects and an array of static values),
+        and the raw output returned by Ipopt.
     """
     x_0, guess_is_variable, optimizer_options = _preprocess(
         system, guess, optimizer_options

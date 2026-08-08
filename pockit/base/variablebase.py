@@ -223,8 +223,11 @@ class VariableBase(ABC):
             >>> x_out_0 = V_x @ v.x[0]
             >>> plt.plot(t_out, x_out_0)
         """
-        t = self._guard_t(t)
-        interval_info = self._interval_partition(t)
+        if len(t):
+            t = self._guard_t(t)
+            interval_info = self._interval_partition(t)
+        else:
+            interval_info = [[] for _ in range(self._N)]
         V_interval = [
             V_interpolation(self._t_x[self._l_x[i] : self._r_x[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)
@@ -249,8 +252,11 @@ class VariableBase(ABC):
             >>> u_out_0 = V_u @ v.u[0]
             >>> plt.plot(t_out, u_out_0)
         """
-        t = self._guard_t(t)
-        interval_info = self._interval_partition(t)
+        if len(t):
+            t = self._guard_t(t)
+            interval_info = self._interval_partition(t)
+        else:
+            interval_info = [[] for _ in range(self._N)]
         V_interval = [
             V_interpolation(self._t_u[self._l_u[i] : self._r_u[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)
@@ -275,8 +281,11 @@ class VariableBase(ABC):
             >>> dx_out_0 = D_x @ v.x[0]
             >>> plt.plot(t_out, dx_out_0)
         """
-        t = self._guard_t(t)
-        interval_info = self._interval_partition(t)
+        if len(t):
+            t = self._guard_t(t)
+            interval_info = self._interval_partition(t)
+        else:
+            interval_info = [[] for _ in range(self._N)]
         D_interval = [
             D_interpolation(self._t_x[self._l_x[i] : self._r_x[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)
@@ -301,8 +310,11 @@ class VariableBase(ABC):
             >>> du_out_0 = D_u @ v.u[0]
             >>> plt.plot(t_out, du_out_0)
         """
-        t = self._guard_t(t)
-        interval_info = self._interval_partition(t)
+        if len(t):
+            t = self._guard_t(t)
+            interval_info = self._interval_partition(t)
+        else:
+            interval_info = [[] for _ in range(self._N)]
         D_interval = [
             D_interpolation(self._t_u[self._l_u[i] : self._r_u[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)

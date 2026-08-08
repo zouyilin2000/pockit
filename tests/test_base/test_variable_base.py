@@ -86,10 +86,10 @@ class PhaseMinimal:
 
 class VariableMinimal(VariableBase):
     def _assemble_x(self, V_interval):
-        pass
+        return self._assemble_nc(V_interval)
 
     def _assemble_u(self, V_interval):
-        pass
+        return self._assemble_nc(V_interval)
 
 
 class TestVariableBase:
@@ -132,6 +132,14 @@ class TestVariableBase:
 
         t = np.linspace(0, 1, 7)
         assert np.allclose(self.v._guard_t(t), t / 10)
+
+    def test_empty_interpolation_nodes(self):
+        t = np.array([], dtype=np.float64)
+        expected_shape = (0, self.p.L_v)
+        assert self.v.V_x(t).shape == expected_shape
+        assert self.v.V_u(t).shape == expected_shape
+        assert self.v.D_x(t).shape == expected_shape
+        assert self.v.D_u(t).shape == expected_shape
 
     def test_assemble_c(self):
         num_point = np.array([2, 3, 4], dtype=np.int32)

@@ -75,7 +75,7 @@ class PhaseBase(ABC):
             symbol_static_parameter: list of static parameters,
                 should be identical to those in the ``System`` object.
             identifier: Unique identifier of the phase.
-            simplify: Whether to use Sympy to simplify :class:`sympy.Expr` before compilation.
+            simplify: Whether to use SymPy to simplify :class:`sympy.Expr` objects before compilation.
             fastmath: Whether to use Numba ``fastmath`` mode.
         """
         self._identifier = identifier
@@ -514,39 +514,69 @@ class PhaseBase(ABC):
     def set_discretization(
         self, mesh: int | Iterable[float], num_point: int | Iterable[int]
     ):
-        """Set the discretization scheme of the system.
+        """Set the discretization scheme of the phase.
 
-        ``mesh`` will be rescaled when needed. If it is set to an integer, a uniform mesh will be used.
-        If set with an array, it will be used as mesh directly after scaling.
+        ``mesh`` is rescaled to ``[0, 1]`` when needed. An integer selects that
+        many uniform subintervals; an iterable specifies the mesh points.
 
-        ``num_point`` decides the number of interpolation/integration points in each subinterval.
-        Same number of points will be used in all subintervals if set with an integer.
+        ``num_point`` sets the number of interpolation and integration points in
+        each subinterval. An integer applies the same value to every subinterval.
 
         Args:
-            mesh: Number of mesh or mesh points.
-            num_point: Number of interpolation and integration points in each subinterval.
+            mesh: Number of uniform subintervals or a strictly increasing sequence
+                of mesh points.
+            num_point: Number of interpolation and integration points in each
+                subinterval.
         """
         if isinstance(mesh, int):  # uniform mesh
-            self._mesh = np.linspace(0, 1, mesh + 1, endpoint=True)
+            if mesh < 1:
+                raise ValueError("mesh must contain at least one interval")
+            mesh_new = np.linspace(0, 1, mesh + 1, endpoint=True)
         else:  # scale to [0, 1]
-            mesh = np.array(list(mesh), dtype=np.float64)
-            self._mesh = (mesh - mesh[0]) / (mesh[-1] - mesh[0])
-        self._num_interval = len(self._mesh) - 1
+            mesh_new = np.array(list(mesh), dtype=np.float64)
+            if mesh_new.ndim != 1 or len(mesh_new) < 2:
+                raise ValueError("mesh must contain at least two points")
+            if not np.all(np.isfinite(mesh_new)):
+                raise ValueError("mesh points must be finite")
+            if np.any(np.diff(mesh_new) <= 0):
+                raise ValueError("mesh points must be strictly increasing")
+            mesh_new = (mesh_new - mesh_new[0]) / (mesh_new[-1] - mesh_new[0])
+        num_interval_new = len(mesh_new) - 1
 
         if isinstance(num_point, int):
-            self._num_point = np.full(self._num_interval, num_point, dtype=np.int32)
+            num_point_new = np.full(num_interval_new, num_point, dtype=np.int64)
         else:
-            num_point = np.array(list(num_point), dtype=np.int32)
-            self._num_point = num_point
+            num_point_values = np.array(list(num_point))
+            if num_point_values.ndim != 1:
+                raise ValueError("num_point must be a one-dimensional iterable")
+            if not np.issubdtype(num_point_values.dtype, np.integer):
+                raise ValueError("num_point entries must be integers")
+            num_point_new = num_point_values.astype(np.int64)
 
-        if len(self._num_point) != self._num_interval:
+        if len(num_point_new) != num_interval_new:
             raise ValueError(
                 "num_point must have the same length as mesh intervals (= len(mesh) - 1)"
             )
-
-        self._object_discretization = self._class_discretization(
-            self._mesh, self._num_point, self.n_x, self.n_u
+        minimum_num_point = (
+            2
+            if self._class_discretization.__module__.startswith("pockit.lobatto.")
+            else 1
         )
+        if np.any(num_point_new < minimum_num_point):
+            raise ValueError(
+                f"num_point entries must be at least {minimum_num_point}"
+            )
+        if np.any(num_point_new > np.iinfo(np.int32).max):
+            raise ValueError("num_point entries are too large")
+        num_point_new = num_point_new.astype(np.int32)
+        object_discretization_new = self._class_discretization(
+            mesh_new, num_point_new, self.n_x, self.n_u
+        )
+
+        self._mesh = mesh_new
+        self._num_interval = num_interval_new
+        self._num_point = num_point_new
+        self._object_discretization = object_discretization_new
 
         for i in range(self.n_x):
             self._node_state_middle[i].l = self.index_state.L_m
@@ -630,6 +660,16 @@ class PhaseBase(ABC):
             )
 
     def _update_node_basic(self):
+        boundary_nodes = (
+            self._node_state_front
+            + self._node_state_back
+            + self._node_control_front
+            + self._node_control_back
+            + [self._node_time_front, self._node_time_back]
+        )
+        for node in boundary_nodes:
+            node.__init__()
+
         for i in range(self.n_x):
             if self.info_bc_0[i].t == BcType.FREE:
                 self._node_state_front[i].set_G_i(
@@ -1470,7 +1510,7 @@ class PhaseBase(ABC):
             return self.check_discontinuous(
                 variable,
                 static_parameter,
-                relative_tolerance_continuous,
+                tolerance_discontinuous,
                 tolerance_mesh,
             ) and self.check_continuous(
                 variable,
@@ -1902,7 +1942,7 @@ class PhaseBase(ABC):
 
     @property
     def x(self) -> list[sp.Symbol]:
-        """:class:`sympy.Symbol` s of state variables."""
+        """SymPy symbols for the state variables."""
         return self._symbol_state
 
     @property
@@ -1912,7 +1952,7 @@ class PhaseBase(ABC):
 
     @property
     def u(self) -> list[sp.Symbol]:
-        """:class:`sympy.Symbol` s of control variables."""
+        """SymPy symbols for the control variables."""
         return self._symbol_control
 
     @property
@@ -1927,7 +1967,7 @@ class PhaseBase(ABC):
 
     @property
     def s(self) -> list[sp.Symbol]:
-        """:class:`sympy.Symbol` s of static parameters."""
+        """SymPy symbols for the static parameters."""
         return self._symbol_static_parameter
 
     @property
@@ -1957,7 +1997,7 @@ class PhaseBase(ABC):
 
     @property
     def I(self) -> list[sp.Symbol]:
-        """:class:`sympy.Symbol` s of integrals."""
+        """SymPy symbols for the integral values."""
         return self._symbol_integral
 
     @property

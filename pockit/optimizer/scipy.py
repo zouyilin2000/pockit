@@ -43,8 +43,8 @@ def solve(
     as values of static variables.
 
     Optimizer options should be a dictionary of options to pass to :func:`scipy.optimize.minimize`.
-    See [Scipy documentation](https://docs.scipy.org)
-    for available options. Options will be passed verbatimly.
+    See the [SciPy documentation](https://docs.scipy.org)
+    for available options. Options are passed through unchanged.
 
     Args:
         system: ``System`` to solve.
@@ -52,8 +52,8 @@ def solve(
         optimizer_options: Options to pass to :func:`scipy.optimize.minimize`.
 
     Returns:
-        The value returned by :func:`scipy.optimize.minimize` parsed as the same format as ``guess``
-        (a single ``Variable`` object or a list of ``Variable`` objects and a array for static values),
+        The SciPy solution converted to the same structure as ``guess``
+        (a single ``Variable`` object or a list containing ``Variable`` objects and an array of static values),
         and the raw output returned by :func:`scipy.optimize.minimize`.
     """
     x_0, guess_is_variable, optimizer_options = _preprocess(

@@ -70,7 +70,7 @@ class SystemBase(ABC):
 
         Args:
             static_parameter: Number of static parameters or list of static parameter names.
-            simplify: Whether to use Sympy to simplify :class:`sympy.Expr` before compilation.
+            simplify: Whether to use SymPy to simplify :class:`sympy.Expr` objects before compilation.
             fastmath: Whether to use Numba ``fastmath`` mode.
         """
         if isinstance(static_parameter, int):
@@ -596,7 +596,8 @@ class SystemBase(ABC):
             v[self.l_i[p_] : self.r_i[p_]] = p._value_integral(
                 which[p_], x[self.l_p[p_] : self.r_p[p_]], x[self.l_s : self.r_s]
             )
-        v[self.r_i[-1] :] = x[self.l_s : self.r_s]
+        i_static = self.r_i[-1] if self._num_phase else 0
+        v[i_static:] = x[self.l_s : self.r_s]
         return v
 
     def objective(self, x: VecFloat) -> np.float64:
@@ -1245,7 +1246,7 @@ class SystemBase(ABC):
 
     @property
     def s(self) -> list[sp.Symbol]:
-        """:class:`sympy.Symbol` s of static parameters."""
+        """SymPy symbols for the static parameters."""
         return self._symbol_static_parameter
 
     @property

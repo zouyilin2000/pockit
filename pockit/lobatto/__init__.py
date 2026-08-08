@@ -1,5 +1,5 @@
 # Copyright (c) 2024 Yilin Zou
-"""Submodule for Legendre-Gauss-Lobatto pseudo-spectral methods.
+"""Submodule for Legendre-Gauss-Lobatto pseudospectral methods.
 
 The Lobatto phase is suitable for problems with continuous state and
 control variables.
