@@ -1,4 +1,4 @@
-# Pockit examples
+# pockit examples
 
 These standalone programs use the same structure: `build_problem`,
 `initial_guess`, `solve_problem`, `plot_solution`, and `main`. Each solver

@@ -350,7 +350,7 @@ def plot_solution(
         current[0],
         current[1],
         color=COLORS["blue"],
-        label="Pockit trajectory",
+        label="pockit trajectory",
     )
     hodograph_axis.plot(
         reference_current[0],

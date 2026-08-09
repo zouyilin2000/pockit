@@ -48,7 +48,7 @@ about:
   description: |
     Pockit solves numerical optimal-control problems using pseudospectral methods
     and supports multiphase systems and constrained trajectory optimization.
-  license: GPL-3.0-only
+  license: MIT
   license_file: LICENSE
   documentation: https://pockit.pages.dev
   repository: https://github.com/zouyilin2000/pockit

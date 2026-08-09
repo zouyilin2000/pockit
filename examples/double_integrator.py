@@ -191,7 +191,7 @@ def plot_solution(solution, *, save=None, show=True):
         solution.t_x,
         solution.x[0],
         color=COLORS["blue"],
-        label="Pockit",
+        label="pockit",
     )
     axes[0].set_ylabel(r"Position $x$ [m]")
     axes[0].set_title("Minimum-time double-integrator transfer")
@@ -209,7 +209,7 @@ def plot_solution(solution, *, save=None, show=True):
         solution.t_x,
         solution.x[1],
         color=COLORS["green"],
-        label="Pockit",
+        label="pockit",
     )
     axes[1].set_ylabel(r"Velocity $v$ [m/s]")
     axes[1].legend()

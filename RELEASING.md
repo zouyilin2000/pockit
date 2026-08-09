@@ -55,10 +55,12 @@ conda run -n pockit-dev python -m twine check --strict dist/*
 
 Inspect both archives. The wheel must contain only the `pockit` package and its
 distribution metadata. The sdist must also contain `tests/`, `examples/`, `images/`,
-`RELEASING.md`, and `packaging/`.
+and `packaging/`. Maintainer-only release instructions in `RELEASING.md` remain in
+the Git repository and are intentionally excluded from distribution archives.
 
 检查两个归档：wheel 只应包含 `pockit` 包和发行元数据；sdist 还必须包含测试、示例、
-图片、发布说明和 conda-forge 草案。
+图片和 conda-forge 草案。仅供维护者使用的 `RELEASING.md` 保留在 Git 仓库中，且有意
+不放入发行归档。
 
 ```powershell
 $wheel = (Get-ChildItem dist -Filter *.whl).FullName

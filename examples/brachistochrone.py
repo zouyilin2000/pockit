@@ -152,7 +152,7 @@ def plot_solution(solution, *, save=None, show=True):
         solution.x[0],
         solution.x[1],
         color=COLORS["blue"],
-        label="Pockit",
+        label="pockit",
     )
     trajectory_axis.scatter(
         [0.0, TARGET_X],

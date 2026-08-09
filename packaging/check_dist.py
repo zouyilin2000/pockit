@@ -21,7 +21,6 @@ def _expected_sdist_files(root: Path) -> set[PurePosixPath]:
     expected = {
         PurePosixPath("LICENSE"),
         PurePosixPath("README.md"),
-        PurePosixPath("RELEASING.md"),
         PurePosixPath("pyproject.toml"),
         PurePosixPath("images/lqr_readme.png"),
     }

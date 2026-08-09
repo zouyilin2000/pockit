@@ -11,12 +11,13 @@ authors = [
 ]
 requires-python = ">=3.11"
 readme = "README.md"
-license = "GPL-3.0-only"
+license = "MIT"
 license-files = ["LICENSE"]
 keywords = ["optimal control", "trajectory optimization", "pseudospectral methods"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
@@ -48,7 +49,6 @@ only-include = [
     "pyproject.toml",
     "README.md",
     "LICENSE",
-    "RELEASING.md",
     "pockit",
     "tests",
     "examples",

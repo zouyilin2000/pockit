@@ -278,7 +278,7 @@ def _integrate_controls(solution, evaluation_time: np.ndarray) -> np.ndarray:
     pockit_control = np.vstack([pockit_matrix @ component for component in solution.u])
     local_control = np.column_stack([control_at(time) for time in comparison_time])
     if np.max(np.abs(pockit_control - local_control)) > 2.0e-12:
-        raise RuntimeError("local control reconstruction disagrees with Pockit")
+        raise RuntimeError("local control reconstruction disagrees with pockit")
 
     def right_hand_side(time, state):
         return _scaled_dynamics(state, control_at(time))
