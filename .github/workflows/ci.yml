@@ -50,10 +50,15 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      - name: Install Ipopt system library
+      - name: Install Ipopt system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install --yes coinor-libipopt-dev pkg-config
+          sudo apt-get install --yes \
+            coinor-libipopt-dev \
+            gfortran \
+            libblas-dev \
+            liblapack-dev \
+            pkg-config
       - name: Install package, examples, and quality tools
         run: |
           python -m pip install --upgrade build ruff twine
