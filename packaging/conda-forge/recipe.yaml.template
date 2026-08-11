@@ -10,7 +10,7 @@ package:
 
 source:
   url: https://pypi.org/packages/source/p/pockit-optimal-control/pockit_optimal_control-${{ version }}.tar.gz
-  sha256: "REPLACE_WITH_PYPI_SDIST_SHA256"
+  sha256: "88d83f3aa7b8a02a152a26174637e69343c7dddd6e3366818ce8fc66665fbcf0"
 
 build:
   noarch: python
