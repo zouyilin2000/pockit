@@ -115,26 +115,27 @@ After the PyPI release:
 2. Calculate its SHA-256 checksum and replace both the version and checksum in the
    template.
 3. Fork `conda-forge/staged-recipes` and copy the completed recipe to the layout
-   requested by its current contribution guide: `recipes/pockit/recipe.yaml`.
+   requested by its current contribution guide:
+   `recipes/pockit-optimal-control/recipe.yaml`.
 4. Confirm that runtime dependencies match the base dependencies in
    `pyproject.toml`. Optional `cyipopt` and `matplotlib` must not become mandatory
    without an explicit packaging decision.
 5. Run the staged-recipes lint/build instructions, push the branch, and open a PR.
 6. After merge, accept the maintainer invitation. The generated
-   `conda-forge/pockit-feedstock` repository becomes the sole source of truth for
-   the Conda recipe and its conda-smithy configuration.
+   `conda-forge/pockit-optimal-control-feedstock` repository becomes the sole
+   source of truth for the Conda recipe and its conda-smithy configuration.
 
 发布 PyPI 后，下载对应 sdist，计算哈希并替换模板中的占位符；随后把完成的 recipe
 提交到 `conda-forge/staged-recipes`。合并后，所有 feedstock 配置都只在新生成的
-`conda-forge/pockit-feedstock` 仓库维护，本项目仓库不应复制 `.ci_support/`、
-`conda-forge.yml` 或 conda-smithy 生成的 workflow。
+`conda-forge/pockit-optimal-control-feedstock` 仓库维护，本项目仓库不应复制
+`.ci_support/`、`conda-forge.yml` 或 conda-smithy 生成的 workflow。
 
 Calculate the checksum in the directory containing the downloaded sdist:
 
 在下载 sdist 所在的目录中计算哈希：
 
 ```powershell
-$sdist = "pockit_optimal_control-0.1.0.tar.gz"
+$sdist = "pockit_optimal_control-0.1.1.tar.gz"
 (Get-FileHash $sdist -Algorithm SHA256).Hash.ToLowerInvariant()
 ```
 
@@ -148,14 +149,14 @@ the current v1 recipe format.
 
 ```powershell
 conda create -n conda-forge-recipe -c conda-forge conda-smithy shellcheck
-conda run -n conda-forge-recipe conda-smithy recipe-lint --conda-forge recipes/pockit
+conda run -n conda-forge-recipe conda-smithy recipe-lint --conda-forge recipes/pockit-optimal-control
 python build-locally.py
 ```
 
-The Conda package is named `pockit`, while its PyPI source distribution is named
-`pockit-optimal-control`. Users who need all example dependencies can install them
-together after the package reaches conda-forge:
+The Conda package and PyPI distribution are both named `pockit-optimal-control`.
+The Python import name remains `pockit`. Users who need all example dependencies
+can install them together after the package reaches conda-forge:
 
 ```powershell
-conda install -c conda-forge pockit cyipopt matplotlib
+conda install -c conda-forge pockit-optimal-control cyipopt matplotlib
 ```

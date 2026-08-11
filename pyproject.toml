@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pockit-optimal-control"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python Optimal Control KIT"
 authors = [
     { name = "Yilin Zou", email = "safe.dust4704@fastmail.com" }
