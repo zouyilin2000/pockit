@@ -34,13 +34,13 @@ def solve(
     guess: VariableBase | list[VariableBase | Iterable[float]],
     optimizer_options: Optional[dict] = None,
 ) -> tuple[VariableBase | list[VariableBase | Iterable[float]], Any]:
-    """Solve the system using trust-constr method of
+    """Solve the system with SciPy's ``trust-constr`` method via
     :func:`scipy.optimize.minimize`.
 
     If the system has only one phase and no static variables, ``guess`` can
     be a single ``Variable`` object. Otherwise, ``guess`` should be a list of
-    ``Variable`` objects, one for each ``Phase``, followed by an array
-    as values of static variables.
+    ``Variable`` objects, one for each ``Phase``, followed by an array of
+    static-parameter values.
 
     Optimizer options should be a dictionary of options to pass to :func:`scipy.optimize.minimize`.
     See the [SciPy documentation](https://docs.scipy.org)
@@ -48,12 +48,12 @@ def solve(
 
     Args:
         system: ``System`` to solve.
-        guess: Guess to the solution.
+        guess: Initial guess for the solution.
         optimizer_options: Options to pass to :func:`scipy.optimize.minimize`.
 
     Returns:
         The SciPy solution converted to the same structure as ``guess``
-        (a single ``Variable`` object or a list containing ``Variable`` objects and an array of static values),
+        (a single ``Variable`` object or a list containing ``Variable`` objects and an array of static-parameter values),
         and the raw output returned by :func:`scipy.optimize.minimize`.
     """
     x_0, guess_is_variable, optimizer_options = _preprocess(

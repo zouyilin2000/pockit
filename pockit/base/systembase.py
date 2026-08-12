@@ -48,8 +48,7 @@ def _translate_value(
 
 
 class SystemBase(ABC):
-    """A system is the higher level objective of a multiple-phase optimal
-    control problem."""
+    """Base class for a complete optimal control problem."""
 
     def __init__(
         self,
@@ -66,7 +65,7 @@ class SystemBase(ABC):
 
         If ``fastmath`` is ``True``, the ``fastmath`` flag will be passed to the Numba JIT compiler,
         see [Numba](https://numba.pydata.org/numba-doc/latest/user/performance-tips.html#fastmath)
-        and [LLVM](https://llvm.org/docs/LangRef.html#fast-math-flags) documentations for details.
+        and [LLVM](https://llvm.org/docs/LangRef.html#fast-math-flags) documentation for details.
 
         Args:
             static_parameter: Number of static parameters or list of static parameter names.
@@ -227,8 +226,8 @@ class SystemBase(ABC):
     ) -> Self:
         """Set the system constraints of the system.
 
-        For equality constraints, set the corresponding entry of ``lower_bounds`` and ``upper_bounds`` to the same value.
-        For one-sided inequality constraints, set the corresponding entry of ``lower_bounds`` or ``upper_bounds``
+        For equality constraints, set the corresponding entries of ``lower_bound`` and ``upper_bound`` to the same value.
+        For one-sided inequality constraints, set the corresponding entry of ``lower_bound`` or ``upper_bound``
         to ``-inf`` or ``inf``.
 
         Args:
@@ -848,7 +847,7 @@ class SystemBase(ABC):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             absolute_tolerance_continuous: Absolute tolerance for continuous error.
             relative_tolerance_continuous: Relative tolerance for continuous error.
             tolerance_mesh: Skip the check if the mesh width is smaller than this value.
@@ -893,7 +892,7 @@ class SystemBase(ABC):
                     )
                 )
 
-        return np.all(ok)
+        return bool(np.all(ok))
 
     def check_discontinuous(
         self,
@@ -907,7 +906,7 @@ class SystemBase(ABC):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             tolerance_discontinuous: In each subinterval, after scaling to ``[0, 1]``, the bang-bang control functions
                 should either be less than ``tolerance_discontinuous`` or greater than ``1 - tolerance_discontinuous``
                 simultaneously.
@@ -951,7 +950,7 @@ class SystemBase(ABC):
                     )
                 )
 
-        return np.all(ok)
+        return bool(np.all(ok))
 
     def check(
         self,
@@ -967,7 +966,7 @@ class SystemBase(ABC):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             absolute_tolerance_continuous: Absolute tolerance for continuous error.
             relative_tolerance_continuous: Relative tolerance for continuous error.
             tolerance_discontinuous: In each subinterval, after scaling to ``[0, 1]``, the bang-bang control functions
@@ -1006,7 +1005,7 @@ class SystemBase(ABC):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             absolute_tolerance_continuous: Absolute tolerance for continuous error.
             relative_tolerance_continuous: Relative tolerance for continuous error.
             num_point_min: Minimum number of interpolation points.
@@ -1015,7 +1014,7 @@ class SystemBase(ABC):
             mesh_length_max: Maximum mesh length.
 
         Returns:
-            The ``Variable`` s interpolated to the new discretization scheme.
+            The ``Variable`` objects interpolated onto the new discretization.
         """
         if not self.ok:
             raise ValueError("system is not fully configured")
@@ -1084,7 +1083,7 @@ class SystemBase(ABC):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             tolerance_discontinuous: In each subinterval, after scaling to ``[0, 1]``, the bang-bang control functions
                 should either be less than ``tolerance_discontinuous`` or greater than ``1 - tolerance_discontinuous``
                 simultaneously.
@@ -1094,7 +1093,7 @@ class SystemBase(ABC):
             mesh_length_max: Maximum mesh length.
 
         Returns:
-            The ``Variable`` s interpolated to the new discretization scheme.
+            The ``Variable`` objects interpolated onto the new discretization.
         """
         if not self.ok:
             raise ValueError("system is not fully configured")
@@ -1166,7 +1165,7 @@ class SystemBase(ABC):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             absolute_tolerance_continuous: Absolute tolerance for continuous error.
             relative_tolerance_continuous: Relative tolerance for continuous error.
             tolerance_discontinuous: In each subinterval, after scaling to ``[0, 1]``, the bang-bang control functions
@@ -1178,7 +1177,7 @@ class SystemBase(ABC):
             mesh_length_max: Maximum mesh length.
 
         Returns:
-            The ``Variable`` s interpolated to the new discretization scheme.
+            The ``Variable`` objects interpolated onto the new discretization.
         """
         if not self.ok:
             raise ValueError("system is not fully configured")

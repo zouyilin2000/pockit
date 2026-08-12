@@ -141,6 +141,14 @@ class TestVariableBase:
         assert self.v.D_x(t).shape == expected_shape
         assert self.v.D_u(t).shape == expected_shape
 
+    def test_derivative_matrices_use_physical_time(self):
+        self.v.x[0] = self.v.t_x**2
+        self.v.u[0] = self.v.t_u**2
+        t = np.linspace(self.v.t_0, self.v.t_f, 17)
+
+        assert np.allclose(self.v.D_x(t) @ self.v.x[0], 2 * t)
+        assert np.allclose(self.v.D_u(t) @ self.v.u[0], 2 * t)
+
     def test_assemble_c(self):
         num_point = np.array([2, 3, 4], dtype=np.int32)
         V_interval = [np.full((2, 2), 1), np.full((0, 3), 2), np.full((1, 4), 3)]

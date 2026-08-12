@@ -1,16 +1,17 @@
 # Copyright (c) 2024 Yilin Zou
-"""# pockit: Python Optimal Control KIT
+"""# Pockit API reference
 
-**😃 Welcome to the pockit API documentation!**
+Pockit is a Python toolkit for numerical optimal control. It supports
+single-phase and multiphase problems using Legendre-Gauss-Lobatto (LGL) and
+Legendre-Gauss-Radau (LGR) pseudospectral methods. Models are defined with
+[SymPy](https://www.sympy.org/) expressions, and their derivatives are
+generated symbolically and evaluated with compiled, vectorized functions.
 
-**Pockit** is a Python package for solving optimal control problems numerically. It combines advanced techniques to deliver a powerful, user-friendly, and fast solution.
-
-- 💪 **Powerful:** Pockit is designed to solve multi-phase optimal control problems with support for path, algebraic, and boundary condition constraints.
-- 🔢 **User-friendly:** Pockit features a [SymPy](https://www.sympy.org/)-based interface that makes defining and solving problems intuitive.
-- ⚡ **Fast:** Pockit achieves high performance through symbolic differentiation (with [SymPy](https://www.sympy.org/)), just-in-time compilation (with [Numba](https://numba.pydata.org/)), vectorization, and other advanced techniques.
-
-Please visit the [project page](https://github.com/zouyilin2000/pockit) and the [documentation](https://pockit.pages.dev) for more information.
+Problems can be solved with Ipopt or SciPy and may include path, algebraic,
+boundary, and integral constraints. See the [user guide](https://pockit.pages.dev)
+for tutorials and the [GitHub repository](https://github.com/zouyilin2000/pockit)
+for source code and examples.
 """
 
 __author__ = "Yilin Zou"
-__copyright__ = "Copyright (c) 2024 Yilin Zou"
+__copyright__ = "Copyright (c) 2024-2026 Yilin Zou"

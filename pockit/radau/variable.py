@@ -20,10 +20,10 @@ class Variable(VariableBase):
 constant_guess: Callable[[Phase, float], Variable] = partial(
     constant_guess_base, Variable
 )
-"""Return a ``Variable`` with constant guesses for a ``Phase``.
+"""Return a ``Variable`` initialized with constant values for a ``Phase``.
 
-Fixed boundary conditions are set to the corresponding values, while the other variables are set to ``value``.
-The function could be used as a starting point to obtain the desired dimensions and interpolation nodes, and then the guesses could be manually adjusted further.
+Fixed boundary values are preserved, and all other variables are set to
+``value``. The returned object can be adjusted before it is passed to a solver.
 
 Args:
     phase: The ``Phase`` to guess for.
@@ -34,10 +34,11 @@ Returns:
 """
 
 linear_guess: Callable[[Phase, float], Variable] = partial(linear_guess_base, Variable)
-"""Return a ``Variable`` with linear guesses for a ``Phase``.
+"""Return a ``Variable`` initialized with linear state values for a ``Phase``.
 
-Fixed boundary conditions are set to the corresponding values; all other boundary conditions are assumed to be ``default``. Then, linear interpolation is used to set variables in the middle.
-The function could be used as a starting point to obtain the desired dimensions and interpolation nodes, and then the guesses could be manually adjusted further.
+Fixed boundary values are preserved. Missing boundary values are replaced by
+``default``, and state values between the boundaries are interpolated linearly.
+The returned object can be adjusted before it is passed to a solver.
 
 Args:
     phase: The ``Phase`` to guess for.

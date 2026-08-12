@@ -50,7 +50,7 @@ class System(SystemBase):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             absolute_tolerance_continuous: Absolute tolerance for continuous error.
             relative_tolerance_continuous: Relative tolerance for continuous error.
             tolerance_discontinuous: In each subinterval, after scaling to :math:`[0, 1]`, the bang-bang control functions
@@ -106,7 +106,7 @@ class System(SystemBase):
             value: The variable to be checked. If the system has only one phase and no static variables, ``value`` can
                 be a single `Variable` object. Otherwise, ``value`` should be a list of
                 ``Variable`` objects, one for each ``Phase``, followed by an array
-                as values of static variables.
+                of static-parameter values.
             absolute_tolerance_continuous: Absolute tolerance for continuous error.
             relative_tolerance_continuous: Relative tolerance for continuous error.
             tolerance_discontinuous: In each subinterval, after scaling to :math:`[0, 1]`, the bang-bang control functions
@@ -118,7 +118,7 @@ class System(SystemBase):
             mesh_length_max: Maximum mesh length.
 
         Returns:
-            The ``Variable`` s interpolated to the new discretization scheme.
+            The ``Variable`` objects interpolated onto the new discretization.
         """
         return self.refine_continuous(
             value,

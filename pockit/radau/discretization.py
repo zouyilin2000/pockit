@@ -121,7 +121,7 @@ def xw_s(mesh: VecFloat, num_point: VecInt) -> tuple[VecFloat, VecFloat]:
     The nodes and weights of each subinterval are scaled and joined together.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
 
     Returns:
@@ -169,7 +169,7 @@ def v2m(num_point: VecInt, n_x: int, n_u: int) -> Callable[[VecFloat], VecFloat]
 @functools.lru_cache
 def T_lgr(num_point: int) -> VecFloat:
     """Compute the translation matrix of the Legendre-Gauss-Radau nodes. The
-    translation matrix is used to eliminate the constant of integrations.
+    translation matrix is used to eliminate the integration constants.
 
     Args:
         num_point: Number of interpolation points.
@@ -203,7 +203,7 @@ def T_v(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:
     The derivative matrix is stored in the compressed sparse row format.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
 
     Returns:
@@ -227,17 +227,17 @@ def T_v(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:
 
 
 def I_m(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:
-    """Compute the intetgration matrix of variable in the middle stage.
+    """Compute the integration matrix for a variable at the collocation nodes.
 
-    Each subinterval's intetgration matrices are placed diagonally.
-    The intetgration matrix is stored in the compressed sparse row format.
+    Each subinterval's integration matrix is placed on the block diagonal.
+    The matrix is stored in compressed sparse row format.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
 
     Returns:
-        Intetgration matrix of a variable in the middle stage in the compressed sparse row format.
+        Integration matrix in compressed sparse row format.
     """
     data = []
     row = []
@@ -259,18 +259,18 @@ def I_m(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:
 
 @functools.lru_cache
 def P_lgr(num_point: int) -> VecFloat:
-    """Compute the coefficients matrix of interpolation polynomials of the
+    """Compute the coefficient matrix for the interpolation polynomials of the
     Legendre-Gauss-Radau nodes.
 
-    The coefficients matrix permits fast computation of the interpolation
+    The coefficient matrix permits fast computation of the interpolation
     polynomials given arbitrary values at the
-    interpolation nodes. I.e., ``coefficients of interpolation polynomial = P @ x``.
+    interpolation nodes: ``interpolation polynomial coefficients = P @ x``.
 
     Args:
         num_point: Number of interpolation points.
 
     Returns:
-        Coefficients matrix of interpolation polynomials of the Legendre-Gauss-Radau nodes.
+        Coefficient matrix for interpolation polynomials on the Legendre-Gauss-Radau nodes.
     """
     x, _ = xw_lgr(num_point)
     P = []
@@ -284,7 +284,7 @@ def P_lgr(num_point: int) -> VecFloat:
 
 @functools.lru_cache
 def V_lgr_x_aug(num_point: int) -> VecFloat:
-    """Compute the value matrix of the state variables for error check.
+    """Compute the value matrix of the state variables for error estimation.
 
     The number of interpolation points is augmented by one.
 
@@ -292,7 +292,7 @@ def V_lgr_x_aug(num_point: int) -> VecFloat:
         num_point: Number of input interpolation points.
 
     Returns:
-        Value matrix of the state variables for error check.
+        Value matrix of the state variables for error estimation.
     """
     x, _ = xw_lgr(num_point)
     x_1 = np.concatenate((x, [1.0]), dtype=np.float64)
@@ -308,7 +308,7 @@ def V_lgr_x_aug(num_point: int) -> VecFloat:
 
 @functools.lru_cache
 def V_lgr_u_aug(num_point: int) -> VecFloat:
-    """Compute the value matrix of the control variables for error check.
+    """Compute the value matrix of the control variables for error estimation.
 
     The number of interpolation points is augmented by one.
 
@@ -316,7 +316,7 @@ def V_lgr_u_aug(num_point: int) -> VecFloat:
         num_point: Number of input interpolation points.
 
     Returns:
-        Value matrix of the control variables for error check.
+        Value matrix of the control variables for error estimation.
     """
     x, _ = xw_lgr(num_point)
     x_aug, _ = xw_lgr(num_point + 1)
@@ -331,7 +331,7 @@ def V_lgr_u_aug(num_point: int) -> VecFloat:
 
 @functools.lru_cache
 def T_lgr_aug(num_point: int) -> VecFloat:
-    """Compute the translation matrix of the state variable for error check.
+    """Compute the translation matrix of the state variable for error estimation.
 
     The number of interpolation points is augmented by one.
 
@@ -339,7 +339,7 @@ def T_lgr_aug(num_point: int) -> VecFloat:
         num_point: Number of input interpolation points.
 
     Returns:
-        Translation matrix of the state variable for error check.
+        Translation matrix of the state variable for error estimation.
     """
     x, _ = xw_lgr(num_point)
     x_1 = np.concatenate((x, [1]), dtype=np.float64)
@@ -363,11 +363,11 @@ def V_s_x_aug(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:
     The number of interpolation points is augmented by one for each subinterval.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
 
     Returns:
-        Value matrix of a state variable for error check in the compressed sparse row format.
+        Value matrix of a state variable for error estimation in compressed sparse row format.
     """
     data = []
     row = []
@@ -395,28 +395,28 @@ def V_s_u_aug(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:
     The number of interpolation points is augmented by one for each subinterval.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
 
     Returns:
-        Value matrix of a control variable for error check in the compressed sparse row format.
+        Value matrix of a control variable for error estimation in compressed sparse row format.
     """
     return scipy.sparse.block_diag([V_lgr_u_aug(n) for n in num_point]).tocsr()
 
 
 def T_s_aug(mesh: VecFloat, num_point: VecInt) -> scipy.sparse.csr_array:
-    """Compute the translation matrix of each variable for error check.
+    """Compute the translation matrix of each variable for error estimation.
 
     Each subinterval's translation matrices are placed diagonally.
     The translation matrix is stored in the compressed sparse row format.
     The number of interpolation points is augmented by one for each subinterval.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
 
     Returns:
-        Translation matrix of each variable for error check in the compressed sparse row format.
+        Translation matrix of each variable for error estimation in compressed sparse row format.
     """
     data = []
     row = []
@@ -440,20 +440,20 @@ def V_xu_aug(
     mesh: VecFloat, num_point: VecInt, n_x: int, n_u: int
 ) -> scipy.sparse.csr_array:
     """Compute the value matrix of all state and control variables for error
-    check.
+    estimation.
 
     The number of interpolation points is augmented by one for each subinterval.
     The value matrices of all state and control variables are placed diagonally.
     The result is stored in the compressed sparse row format.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
         n_x: Number of state variables.
         n_u: Number of control variables
 
     Returns:
-        Value matrix of all variables for error check in the compressed sparse row format.
+        Value matrix of all variables for error estimation in compressed sparse row format.
     """
     V_s_x_ = V_s_x_aug(mesh, num_point)
     V_s_u_ = V_s_u_aug(mesh, num_point)
@@ -466,19 +466,19 @@ def V_xu_aug(
 
 
 def T_x_aug(mesh: VecFloat, num_point: VecInt, n_x: int) -> scipy.sparse.csr_array:
-    """Compute the translation matrix of all state variables for error check.
+    """Compute the translation matrix of all state variables for error estimation.
 
     The number of interpolation points is augmented by one for each subinterval.
     The translation matrices of all state variables are placed diagonally.
     The result is stored in the compressed sparse row format.
 
     Args:
-        mesh: Mesh points. I.e., boundaries of each subinterval.
+        mesh: Mesh points, that is, the boundaries of the subintervals.
         num_point: Number of interpolation points of each subinterval.
         n_x: Number of state variables.
 
     Returns:
-        Translation matrix of all state variables for error check in the compressed sparse row format.
+        Translation matrix of all state variables for error estimation in compressed sparse row format.
     """
     T_s_ = T_s_aug(mesh, num_point)
     diag = [T_s_ for _ in range(n_x)]
@@ -515,7 +515,7 @@ class Discretization(DiscretizationBase):
         self._T_x_aug = T_x_aug(mesh, num_point, self.n_x)
         self._I_m_aug = I_m(mesh, num_point + 1)
 
-        # data for Vriable
+        # Data used by Variable.
         self._t_x = np.concatenate([self.t_m, [1]], dtype=np.float64)
         self._l_x, self._r_x = lr_c(num_point + 1)
         self._l_u, self._r_u = lr_nc(num_point)

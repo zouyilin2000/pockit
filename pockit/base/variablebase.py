@@ -63,8 +63,7 @@ def D_interpolation(x_old: VecFloat, x_new: VecFloat) -> VecFloat:
 
 
 class BatchIndexArray:
-    """Utility class for firstly indexing a batch of elements and then further
-    indexing the value."""
+    """Provide indexed access to a sequence of array slices."""
 
     def __init__(self, data: VecFloat, l_index: VecInt, r_index: VecInt) -> None:
         """
@@ -93,14 +92,12 @@ class BatchIndexArray:
 class VariableBase(ABC):
     """Optimization variable for a discretized phase.
 
-    ``Variable`` objects provide two kinds of interfaces:
-    - Plain 1D array for passing to the solver;
-    - Methods for quickly accessing specific variables for users to set and extract corresponding values.
+    A ``Variable`` exposes its data both as a flat array for solvers and through
+    convenient accessors for individual state and control variables. It also
+    provides interpolation matrices for plotting and mesh adaptation.
 
-    Besides, ``Variable`` provides methods to generate interpolation matrices for mesh adaption and plotting.
-
-    Generally, users need not create ``Variable`` objects directly.
-    A better way is to use the func:`constant_guess` and func:`linear_guess` functions to generate a starting point and possibly adjust it manually.
+    Users normally create instances with ``constant_guess`` or ``linear_guess``
+    and then adjust the initial guess as needed.
     """
 
     def __init__(self, phase: PhaseBase, data: VecFloat) -> None:
@@ -163,12 +160,12 @@ class VariableBase(ABC):
             if np.isclose(t[0], self.t_0, rtol=0, atol=1e-8):
                 t[0] = self.t_0
             else:
-                raise ValueError("t[0] must be equal or greater than t_0")
+                raise ValueError("t[0] must be greater than or equal to t_0")
         if t[-1] > self.t_f:
             if np.isclose(t[-1], self.t_f, rtol=0, atol=1e-8):
                 t[-1] = self.t_f
             else:
-                raise ValueError("t[-1] must be equal or smaller than t_f")
+                raise ValueError("t[-1] must be less than or equal to t_f")
         return (t - self.t_0) / (self.t_f - self.t_0)
 
     @staticmethod
@@ -218,7 +215,7 @@ class VariableBase(ABC):
         Examples:
             Plot the first state variable at the output time nodes ``t_out``:
 
-            >>> t_out = np.linspace(t_0, t_f, 100)
+            >>> t_out = np.linspace(v.t_0, v.t_f, 100)
             >>> V_x = v.V_x(t_out)
             >>> x_out_0 = V_x @ v.x[0]
             >>> plt.plot(t_out, x_out_0)
@@ -247,7 +244,7 @@ class VariableBase(ABC):
         Examples:
             Plot the first control variable at the output time nodes ``t_out``:
 
-            >>> t_out = np.linspace(t_0, t_f, 100)
+            >>> t_out = np.linspace(v.t_0, v.t_f, 100)
             >>> V_u = v.V_u(t_out)
             >>> u_out_0 = V_u @ v.u[0]
             >>> plt.plot(t_out, u_out_0)
@@ -264,8 +261,7 @@ class VariableBase(ABC):
         return self._assemble_u(V_interval)
 
     def D_x(self, t: VecFloat) -> scipy.sparse.csr_array:
-        """Return the derivative interpolation matrix for the state variables
-        at the output time nodes ``t``.
+        """Return the physical-time derivative matrix for the state variables.
 
         Args:
             t: Time points for output.
@@ -276,7 +272,7 @@ class VariableBase(ABC):
         Examples:
             Plot the derivative of the first state variable at the output time nodes ``t_out``:
 
-            >>> t_out = np.linspace(t_0, t_f, 100)
+            >>> t_out = np.linspace(v.t_0, v.t_f, 100)
             >>> D_x = v.D_x(t_out)
             >>> dx_out_0 = D_x @ v.x[0]
             >>> plt.plot(t_out, dx_out_0)
@@ -290,11 +286,10 @@ class VariableBase(ABC):
             D_interpolation(self._t_x[self._l_x[i] : self._r_x[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)
         ]
-        return self._assemble_x(D_interval)
+        return self._assemble_x(D_interval) / (self.t_f - self.t_0)
 
     def D_u(self, t: VecFloat) -> scipy.sparse.csr_array:
-        """Return the derivative interpolation matrix for the control variables
-        at the output time nodes ``t``.
+        """Return the physical-time derivative matrix for the control variables.
 
         Args:
             t: Time points for output.
@@ -305,7 +300,7 @@ class VariableBase(ABC):
         Examples:
             Plot the derivative of the first control variable at the output time nodes ``t_out``:
 
-            >>> t_out = np.linspace(t_0, t_f, 100)
+            >>> t_out = np.linspace(v.t_0, v.t_f, 100)
             >>> D_u = v.D_u(t_out)
             >>> du_out_0 = D_u @ v.u[0]
             >>> plt.plot(t_out, du_out_0)
@@ -319,18 +314,16 @@ class VariableBase(ABC):
             D_interpolation(self._t_u[self._l_u[i] : self._r_u[i]], np.array(t_))
             for i, t_ in enumerate(interval_info)
         ]
-        return self._assemble_u(D_interval)
+        return self._assemble_u(D_interval) / (self.t_f - self.t_0)
 
     @property
     def x(self) -> BatchIndexArray:
-        """The state variables of the variable that could be further
-        indexed."""
+        """State values, indexed by state variable."""
         return self._array_state
 
     @property
     def u(self) -> BatchIndexArray:
-        """The control variables of the variable that could be further
-        indexed."""
+        """Control values, indexed by control variable."""
         return self._array_control
 
     @property
@@ -402,10 +395,12 @@ def constant_guess_base(
 ) -> VariableBase:
     """Return a ``Variable`` with constant guesses for a ``Phase``.
 
-    Fixed boundary conditions are set to the corresponding values, while the other variables are set to ``value``.
-    The function could be used as a starting point to obtain the desired dimensions and interpolation nodes, and then the guesses could be manually adjusted further.
+    Fixed boundary values are preserved, and all other variables are set to
+    ``value``. The returned object can be adjusted before it is passed to a
+    solver.
 
     Args:
+        Variable: Concrete ``Variable`` class to instantiate.
         phase: The ``Phase`` to guess for.
         value: The constant value to guess.
 
@@ -437,10 +432,13 @@ def linear_guess_base(
 ) -> VariableBase:
     """Return a ``Variable`` with linear guesses for a ``Phase``.
 
-    Fixed boundary conditions are set to the corresponding values; all other boundary conditions are assumed to be ``default``. Then, linear interpolation is used to set variables in the middle.
-    The function could be used as a starting point to obtain the desired dimensions and interpolation nodes, and then the guesses could be manually adjusted further.
+    Fixed boundary values are preserved. Missing boundary values are replaced
+    by ``default``, and state values between the boundaries are interpolated
+    linearly. The returned object can be adjusted before it is passed to a
+    solver.
 
     Args:
+        Variable: Concrete ``Variable`` class to instantiate.
         phase: The ``Phase`` to guess for.
         default: The default value to guess.
 

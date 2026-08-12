@@ -17,8 +17,8 @@ def solve(
 
     If the system has only one phase and no static variables, ``guess`` can
     be a single ``Variable`` object. Otherwise, ``guess`` should be a list of
-    ``Variable`` objects, one for each ``Phase``, followed by an array
-    as values of static variables.
+    ``Variable`` objects, one for each ``Phase``, followed by an array of
+    static-parameter values.
 
     Optimizer options should be a dictionary of options to pass to Ipopt.
     See [Ipopt documentation](https://coin-or.github.io/Ipopt/OPTIONS.html) for available options.
@@ -26,12 +26,12 @@ def solve(
 
     Args:
         system: ``System`` to solve.
-        guess: Guess to the solution.
+        guess: Initial guess for the solution.
         optimizer_options: Options to pass to Ipopt.
 
     Returns:
         The Ipopt solution converted to the same structure as ``guess``
-        (a single ``Variable`` object or a list containing ``Variable`` objects and an array of static values),
+        (a single ``Variable`` object or a list containing ``Variable`` objects and an array of static-parameter values),
         and the raw output returned by Ipopt.
     """
     x_0, guess_is_variable, optimizer_options = _preprocess(

@@ -17,6 +17,7 @@ class TestCheckRadau:
 
     def test_check_discontinuous(self):
         v = constant_guess(self.p, 0.0)
+        assert isinstance(self.s.check_discontinuous([v, [2.0]]), bool)
         assert self.s.check_discontinuous([v, [2.0]])
         assert self.s.check_discontinuous([v, [2.01]])
         assert not self.s.check_discontinuous([v, [1.99]])
@@ -34,6 +35,7 @@ class TestCheckRadau:
     def test_check_continuous(self):
         v = constant_guess(self.p, 1.0)
         v.x[0] = v.t_x
+        assert isinstance(self.s.check_continuous([v, [0.0]]), bool)
         assert self.s.check_continuous([v, [0.0]])
 
         v.u[0] = v.t_u * 2

@@ -70,8 +70,7 @@ def _fnv1a_hash(text: str) -> int:
 
 
 class FastFunc:
-    """JITed, vectorized functions with automatic differentiation to compute
-    values, gradients, and Hessians.
+    """JIT-compiled, vectorized functions for values and symbolic derivatives.
 
     FastFunc takes a SymPy expression and a list of SymPy symbols as
     function arguments and generates JIT-compiled, vectorized functions for
@@ -86,11 +85,11 @@ class FastFunc:
     H: Callable[[VecFloat, np.int32], VecFloat]
     """Vectorized function to compute the Hessian."""
     G_index: VecInt
-    """Indices of non-zero elements for gradient."""
+    """Indices of nonzero gradient elements."""
     H_index_row: VecInt
-    """Row indices of non-zero elements in the lower triangular part of the Hessian."""
+    """Row indices of nonzero elements in the lower triangle of the Hessian."""
     H_index_col: VecInt
-    """Column indices of non-zero elements in the lower triangular part of the Hessian."""
+    """Column indices of nonzero elements in the lower triangle of the Hessian."""
 
     def __init__(
         self,
@@ -104,7 +103,7 @@ class FastFunc:
         """Suppose the expression of the input function is ``f(a_1, a_2, ..., a_n)``, with ``n`` arguments
         ``(a_1, a_2, ..., a_n)`` as the second argument ``args``. The generated functions ``F``, ``G``, and ``H``
         take two arguments ``x`` and ``k``, where ``x`` is a 1D array of length ``n * k``, and ``k`` is an integer.
-        The first ``n`` elements of ``x`` are the values of ``a_1`` at ``k`` different points, the next ``n`` elements are
+        The first ``k`` elements of ``x`` are the values of ``a_1`` at ``k`` different points, the next ``k`` elements are
         the values of ``a_2``, and so on. The return value of ``F`` is a 1D array of length ``k``, where the ``i``-th
         element is the value of ``f(a_1, a_2, ..., a_n)`` at the ``i``-th point. The return value of ``G`` is a 2D array
         of shape ``(len(G_index), k)``, where ``G_index`` contains the indices of non-zero elements in the gradient matrix.
@@ -312,12 +311,14 @@ class FastFunc:
         )
 
 
-def ensure_directory(path: str | Path):
-    """
-    Ensure that the path exists and is a directory.
+def ensure_directory(path: str | Path) -> None:
+    """Ensure that a path exists and is a directory.
 
     Args:
-        path: The path to check/create (can be a string or a Path object).
+        path: Directory to create if it does not already exist.
+
+    Raises:
+        NotADirectoryError: If ``path`` exists and is not a directory.
     """
     path = Path(path) if not isinstance(path, Path) else path
 

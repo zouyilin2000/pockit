@@ -36,8 +36,7 @@ class BcInfo(namedtuple("BcInfo", ["t", "v"])):
 
 
 class PhaseBase(ABC):
-    """A phase is a lower level objective of a multiple-phase optimal control
-    problem."""
+    """Base class for one phase of an optimal control problem."""
 
     def __init__(
         self,
@@ -67,7 +66,7 @@ class PhaseBase(ABC):
 
         If ``fastmath`` is ``True``, the ``fastmath`` flag will be passed to the Numba JIT compiler,
         see [Numba](https://numba.pydata.org/numba-doc/latest/user/performance-tips.html#fastmath)
-        and [LLVM](https://llvm.org/docs/LangRef.html#fast-math-flags) documentations for details.
+        and [LLVM](https://llvm.org/docs/LangRef.html#fast-math-flags) documentation for details.
 
         Args:
             state: Number of state variables or list of state variable names.
@@ -320,8 +319,8 @@ class PhaseBase(ABC):
         """Set phase constraints of the system, which is enforced in the entire
         time interval of the phase.
 
-        For equality constraints, set the corresponding entry of ``lower_bounds`` and ``upper_bounds`` to the same value.
-        For one-sided inequality constraints, set the corresponding entry of ``lower_bounds`` or ``upper_bounds``
+        For equality constraints, set the corresponding entries of ``lower_bound`` and ``upper_bound`` to the same value.
+        For one-sided inequality constraints, set the corresponding entry of ``lower_bound`` or ``upper_bound``
         to ``-inf`` or ``inf``.
         If the problem to be solved is a bang-bang control problem, set ``bang_bang_control`` as a list of bools indicating
         whether the corresponding phase constraint is a bang-bang constraint.
