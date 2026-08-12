@@ -58,6 +58,7 @@ Pockit 需要 Python 3.11 或更高版本。基础包可从 PyPI 安装；`ipopt
 | --- | --- |
 | Core package / 基础包 | `pip install pockit-optimal-control` |
 | Ipopt and examples / Ipopt 与示例依赖 | `pip install "pockit-optimal-control[ipopt,examples]"` |
+| Conda package with Ipopt / 包含 Ipopt 的 Conda 包 | `conda install -c conda-forge pockit-optimal-control` |
 
 ## Examples / 示例
 

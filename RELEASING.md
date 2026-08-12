@@ -118,8 +118,8 @@ After the PyPI release:
    requested by its current contribution guide:
    `recipes/pockit-optimal-control/recipe.yaml`.
 4. Confirm that runtime dependencies match the base dependencies in
-   `pyproject.toml`. Optional `cyipopt` and `matplotlib` must not become mandatory
-   without an explicit packaging decision.
+   `pyproject.toml`. The Conda package also includes `cyipopt` so the Ipopt backend
+   works by default; `matplotlib` remains optional.
 5. Run the staged-recipes lint/build instructions, push the branch, and open a PR.
 6. After merge, accept the maintainer invitation. The generated
    `conda-forge/pockit-optimal-control-feedstock` repository becomes the sole
@@ -154,9 +154,10 @@ python build-locally.py
 ```
 
 The Conda package and PyPI distribution are both named `pockit-optimal-control`.
-The Python import name remains `pockit`. Users who need all example dependencies
-can install them together after the package reaches conda-forge:
+The Python import name remains `pockit`. The Conda package installs `cyipopt` and
+its native Ipopt dependency by default. Users who need the plotting dependency
+can install it alongside Pockit:
 
 ```powershell
-conda install -c conda-forge pockit-optimal-control cyipopt matplotlib
+conda install -c conda-forge pockit-optimal-control matplotlib
 ```
