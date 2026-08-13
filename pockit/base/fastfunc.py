@@ -1,11 +1,12 @@
 # Copyright (c) 2024 Yilin Zou
 import functools
-import os
-import tempfile
+import hashlib
 import importlib.util
+import os
 import sys
-from typing import Callable, Optional
+import tempfile
 from pathlib import Path
+from typing import Callable, Optional
 
 import numpy as np
 import sympy as sp
@@ -44,7 +45,12 @@ def _code_basic(expr: sp.Expr, opt) -> str:
 
 def _load_module(path: str):
     """Load a module from a file."""
-    spec = importlib.util.spec_from_file_location("module", path)
+    path = Path(path).resolve()
+    module_identity = hashlib.sha256()
+    module_identity.update(str(path).encode())
+    module_identity.update(path.read_bytes())
+    module_name = f"_pockit_fastfunc_{module_identity.hexdigest()}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)

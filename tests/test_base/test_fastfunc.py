@@ -1,4 +1,7 @@
 # Copyright (c) 2024 Yilin Zou
+import subprocess
+import sys
+
 import numpy as np
 import sympy as sp
 
@@ -72,3 +75,41 @@ def test_configs():
     x, y, z = sp.symbols("x, y, z")
     FastFunc(x + y**2, [x, y, z], fastmath=True)
     FastFunc(x + y**2, [x, y, z], simplify=True)
+
+
+def test_cached_modules_have_unique_stable_names(tmp_path):
+    x = sp.symbols("x")
+    cache_1 = str(tmp_path / "function_1.py")
+    cache_2 = str(tmp_path / "function_2.py")
+
+    ff_1 = FastFunc(x, [x], cache=cache_1)
+    ff_2 = FastFunc(x**2, [x], cache=cache_2)
+    ff_1_reloaded = FastFunc(x, [x], cache=cache_1)
+
+    assert ff_1.F.py_func.__module__ != ff_2.F.py_func.__module__
+    assert ff_1.F.py_func.__module__ == ff_1_reloaded.F.py_func.__module__
+
+    value = np.arange(5, dtype=np.float64)
+    assert np.allclose(ff_1_reloaded.F(value, 5), value)
+    assert np.allclose(ff_2.F(value, 5), value**2)
+
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            f"""
+import numpy as np
+import sympy as sp
+from pockit.base.fastfunc import FastFunc
+
+x = sp.symbols("x")
+value = np.arange(5, dtype=np.float64)
+ff_1 = FastFunc(x, [x], cache={cache_1!r})
+ff_2 = FastFunc(x**2, [x], cache={cache_2!r})
+assert ff_1.F.py_func.__module__ != ff_2.F.py_func.__module__
+assert np.allclose(ff_1.F(value, 5), value)
+assert np.allclose(ff_2.F(value, 5), value**2)
+""",
+        ],
+        check=True,
+    )
